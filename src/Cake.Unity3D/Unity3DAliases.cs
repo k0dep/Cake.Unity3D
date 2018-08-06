@@ -15,12 +15,12 @@ namespace Cake.Unity3D
         /// Build a provided Unity3D project with the specified build options.
         /// </summary>
         /// <param name="context">The active cake context.</param>
-        /// <param name="projectFolder">The absolute path to the Unity3D project to build.</param>
+        /// <param name="projectOptions">The Unity3d Project options to use when building the project.</param>
         /// <param name="options">The build options to use when building the project.</param>
         [CakeMethodAlias]
-        public static void BuildUnity3DProject(this ICakeContext context, FilePath projectFolder, Unity3DBuildOptions options)
+        public static void BuildUnity3DProject(this ICakeContext context, Unity3DProjectOptions projectOptions, Unity3DBuildOptions options)
         {
-            var unityBuildContext = new Unity3DBuildContext(context, projectFolder, options);
+            var unityBuildContext = new Unity3DBuildContext(context, projectOptions, options);
             unityBuildContext.DumpOptions();
             unityBuildContext.Build();
         }
@@ -29,18 +29,18 @@ namespace Cake.Unity3D
         /// Build a provided Unity3D project with the specified build options.
         /// </summary>
         /// <param name="context">The active cake context.</param>
-        /// <param name="projectFolder">The absolute path to the Unity3D project to build.</param>
+        /// <param name="projectOptions">The Unity3d Project options to use when building the project.</param>
         /// <param name="options">The build options to use when building the project.</param>
         [CakeMethodAlias]
-        public static void BuildUnity3DDependency(this ICakeContext context, FilePath projectFolder, Unity3DBuildDependencyOptions options)
+        public static void BuildUnity3DDependency(this ICakeContext context, Unity3DProjectOptions projectOptions, Unity3DBuildDependencyOptions options)
         {
-            var unityBuildContext = new Unity3DBuildDependencyContext(context, projectFolder, options);
+            var unityBuildContext = new Unity3DBuildDependencyContext(context, projectOptions, options);
             unityBuildContext.DumpOptions();
             unityBuildContext.Build();
         }
 
         [CakeMethodAlias]
-        public static void ModUnity3DDependency(this ICakeContext context, FilePath projectFolder, string dependencyName, bool state)
+        public static void ModUnity3DDependency(this ICakeContext context, Unity3DProjectOptions projectOptions, string dependencyName, bool state)
         {
             // TODO
         }

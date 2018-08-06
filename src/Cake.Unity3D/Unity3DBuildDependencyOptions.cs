@@ -9,34 +9,26 @@ namespace Cake.Unity3D
     /// <summary>
     /// All build options available for building Unity3d dependencies.
     /// </summary>
-    public class Unity3DBuildDependencyOptions : IUnity3DBuildOptions
+    public class Unity3DBuildDependencyOptions
     {
         /// <summary>
-        /// The location of the Unity.exe to use.
-        /// Default: null
+        /// List of all Depenedencies to build
         /// </summary>
-        public string UnityEditorLocation { get; set; }
+        public List<Dependency> Dependencies { get; set; } = new List<Dependency>();
 
         /// <summary>
-        /// Should the editor log produced by Unity3D whilst building
-        /// be output to the console.
-        /// Default: true
+        /// Configuration for a single Dependency to build
         /// </summary>
-        public bool OutputEditorLog { get; set; }
-
-        /// <summary>
-        /// Should we install the automated build script
-        /// even if we find an existing one.
-        /// Default: false
-        /// </summary>
-        public bool ForceScriptInstall { get; set; }
-
-        // TOOD: this needs to be a source -> Target thing
-
-        /// <summary>
-        /// The names of all the dependencies to build
-        /// Default: empty list
-        /// </summary>
-        public List<string> TargetDependencieNames { get; set; } = new List<string>();
+        public struct Dependency
+        {
+            /// <summary>
+            /// The source name of the dependency to build
+            /// </summary>
+            public string Source;
+            /// <summary>
+            /// The target name of the dependency to build
+            /// </summary>
+            public string Target;
+        }
     }
 }

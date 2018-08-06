@@ -8,35 +8,10 @@ using Cake.Unity3D.Helpers;
 
 namespace Cake.Unity3D
 {
-    // TODO : Split Gneral options and Job Options
-
-    /// <summary>
-    /// Base requirements for build options
-    /// </summary>
-    public interface IUnity3DBuildOptions
-    {
-        /// <summary>
-        /// The location of the Unity.exe to use.
-        /// </summary>
-        string UnityEditorLocation { get; set; }
-
-        /// <summary>
-        /// Should the editor log produced by Unity3D whilst building
-        /// be output to the console.
-        /// </summary>
-        bool OutputEditorLog { get; set; }
-
-        /// <summary>
-        /// Should we install the automated build script
-        /// even if we find an existing one.
-        /// </summary>
-        bool ForceScriptInstall { get; set; }
-    }
-
     /// <summary>
     /// The core context for a Unity3D project.
     /// </summary>
-    public class Unity3DContext<T> where T : IUnity3DBuildOptions
+    public class Unity3DContext<T>
     {
         /// <summary>
         /// The cake context being used.
@@ -44,9 +19,9 @@ namespace Cake.Unity3D
         protected readonly ICakeContext m_cakeContext;
 
         /// <summary>
-        /// The absolute path to the Unity3D project to build.
+        /// The Unity3d Project options to use when building the project.
         /// </summary>
-        protected readonly FilePath m_projectFolder;
+        protected readonly Unity3DProjectOptions m_projectOptions;
 
         /// <summary>
         /// The build options to use when building the project.
@@ -57,12 +32,12 @@ namespace Cake.Unity3D
         /// Default constructor
         /// </summary>
         /// <param name="context">The current cake context.</param>
-        /// <param name="projectFolder">The absolute path to the Unity3D project to build.</param>
+        /// <param name="projectOptions">The Unity3d Project options to use when building the project.</param>
         /// <param name="options">The build options to use when building the project.</param>
-        public Unity3DContext(ICakeContext context, FilePath projectFolder, T options)
+        public Unity3DContext(ICakeContext context, Unity3DProjectOptions projectOptions, T options)
         {
             m_cakeContext = context;
-            m_projectFolder = projectFolder;
+            m_projectOptions = projectOptions;
             m_buildOptions = options;
         }
 
@@ -71,10 +46,10 @@ namespace Cake.Unity3D
         /// </summary>
         public virtual void DumpOptions()
         {
-            Console.WriteLine($"ProjectFolder: {m_projectFolder}");
-            Console.WriteLine($"UnityEditorLocation: {m_buildOptions.UnityEditorLocation}");
-            Console.WriteLine($"OutputEditorLog: {m_buildOptions.OutputEditorLog}");
-            Console.WriteLine($"ForceScriptInstall: {m_buildOptions.ForceScriptInstall}");
+            Console.WriteLine($"ProjectFolder: {m_projectOptions.ProjectFolder}");
+            Console.WriteLine($"UnityEditorLocation: {m_projectOptions.UnityEditorLocation}");
+            Console.WriteLine($"OutputEditorLog: {m_projectOptions.OutputEditorLog}");
+            Console.WriteLine($"ForceScriptInstall: {m_projectOptions.ForceScriptInstall}");
         }
 
         /// <summary>
@@ -84,7 +59,7 @@ namespace Cake.Unity3D
         {
             // Make sure the automated build script has been copied to the Unity project.
             // The build script is a Unity script that actually invokes the build.
-            if (!ProjectHasAutomatedBuildScript() || m_buildOptions.ForceScriptInstall)
+            if (!ProjectHasAutomatedBuildScript() || m_projectOptions.ForceScriptInstall)
             {
                 InstallAutomatedBuildScript();
             }
@@ -96,7 +71,7 @@ namespace Cake.Unity3D
         /// <returns>The absolute path to the automated build script.</returns>
         private string GetAutomatedBuildScriptPath()
         {
-            return System.IO.Path.Combine(m_projectFolder.FullPath, "Assets", "Cake.Unity3D", "Editor", "AutomatedBuild.cs");
+            return System.IO.Path.Combine(m_projectOptions.ProjectFolder.FullPath, "Assets", "Cake.Unity3D", "Editor", "AutomatedBuild.cs");
         }
 
         /// <summary>
@@ -150,12 +125,15 @@ namespace Cake.Unity3D
             var buildArguments =
                 "-batchmode " +
                 "-quit " +
-                $"-projectPath \"{m_projectFolder.FullPath}\" " +
+                $"-projectPath \"{m_projectOptions.ProjectFolder.FullPath}\" " +
                 $"-executeMethod {method} ";
-            
-            foreach(KeyValuePair<string, string> arg in args)
+
+            if (args != null)
             {
-                buildArguments += $"{arg.Key}={arg.Value}";
+                foreach (KeyValuePair<string, string> arg in args)
+                {
+                    buildArguments += $"{arg.Key}={arg.Value}";
+                }
             }
 
             // Create the process using the Unity editor and arguments above.
@@ -163,14 +141,14 @@ namespace Cake.Unity3D
             {
                 StartInfo = new ProcessStartInfo()
                 {
-                    FileName = m_buildOptions.UnityEditorLocation,
+                    FileName = m_projectOptions.UnityEditorLocation,
                     Arguments = buildArguments,
                     CreateNoWindow = true,
                     UseShellExecute = false
                 }
             };
 
-            Console.WriteLine($"Running: \"{m_buildOptions.UnityEditorLocation}\" {buildArguments}");
+            Console.WriteLine($"Running: \"{m_projectOptions.UnityEditorLocation}\" {buildArguments}");
 
             // Unity will output to a log, and not to the console.
             // So we have to periodically parse the log and redirect the output to the console.
@@ -191,7 +169,7 @@ namespace Cake.Unity3D
             while (!process.HasExited)
             {
                 System.Threading.Thread.Sleep(100);
-                logReportedError |= Unity3DEditor.ProcessEditorLog(m_cakeContext, m_buildOptions.OutputEditorLog, logLocation, ref outputLineIndex);
+                logReportedError |= Unity3DEditor.ProcessEditorLog(m_cakeContext, m_projectOptions.OutputEditorLog, logLocation, ref outputLineIndex);
             }
 
             if (logReportedError)

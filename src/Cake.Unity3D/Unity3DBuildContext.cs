@@ -17,10 +17,10 @@ namespace Cake.Unity3D
         /// Default constructor
         /// </summary>
         /// <param name="context">The current cake context.</param>
-        /// <param name="projectFolder">The absolute path to the Unity3D project to build.</param>
+        /// <param name="projectOptions">The Unity3d Project options to use when building the project.</param>
         /// <param name="options">The build options to use when building the project.</param>
-        public Unity3DBuildContext(ICakeContext context, FilePath projectFolder, Unity3DBuildOptions options) 
-            : base(context, projectFolder, options)
+        public Unity3DBuildContext(ICakeContext context, Unity3DProjectOptions projectOptions, Unity3DBuildOptions options) 
+            : base(context, projectOptions, options)
         {
             if (string.IsNullOrEmpty(options.OutputPath))
             {
@@ -37,9 +37,9 @@ namespace Cake.Unity3D
                 throw new Exception("The build version can not contain any spaces.");
             }
 
-            if (!System.IO.File.Exists(options.UnityEditorLocation))
+            if (!System.IO.File.Exists(projectOptions.UnityEditorLocation))
             {
-                throw new Exception($"The Unity Editor location '{options.UnityEditorLocation}' does not exist.");
+                throw new Exception($"The Unity Editor location '{projectOptions.UnityEditorLocation}' does not exist.");
             }
         }
 
