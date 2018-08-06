@@ -117,6 +117,11 @@ namespace Cake.Unity3D
             Console.WriteLine($"AutomatedBuild Script installed to \"{path}\"");
         }
 
+        /// <summary>
+        /// Invoke the Unity3D editor
+        /// </summary>
+        /// <param name="method">The Unity scipt method to call</param>
+        /// <param name="args">arguments for the command line</param>
         protected void RunUnityCommand(string method, Dictionary<string, string> args)
         {
             // The command line arguments to use.

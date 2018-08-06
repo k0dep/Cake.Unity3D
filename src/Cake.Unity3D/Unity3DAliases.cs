@@ -39,6 +39,13 @@ namespace Cake.Unity3D
             unityBuildContext.Build();
         }
 
+        /// <summary>
+        /// Enable or Dissable Unity3D Project Dependencies
+        /// </summary>
+        /// <param name="context">The active cake context.</param>
+        /// <param name="projectOptions">The Unity3d Project options to use when building the project.</param>
+        /// <param name="dependencyName">Name of the Depenendency</param>
+        /// <param name="state">State of the dependency</param>
         [CakeMethodAlias]
         public static void ModUnity3DDependency(this ICakeContext context, Unity3DProjectOptions projectOptions, string dependencyName, bool state)
         {
