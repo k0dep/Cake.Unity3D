@@ -26,6 +26,26 @@ namespace Cake.Unity3D
         }
 
         /// <summary>
+        /// Build a provided Unity3D project with the specified build options.
+        /// </summary>
+        /// <param name="context">The active cake context.</param>
+        /// <param name="projectFolder">The absolute path to the Unity3D project to build.</param>
+        /// <param name="options">The build options to use when building the project.</param>
+        [CakeMethodAlias]
+        public static void BuildUnity3DDependency(this ICakeContext context, FilePath projectFolder, Unity3DBuildDependencyOptions options)
+        {
+            var unityBuildContext = new Unity3DBuildDependencyContext(context, projectFolder, options);
+            unityBuildContext.DumpOptions();
+            unityBuildContext.Build();
+        }
+
+        [CakeMethodAlias]
+        public static void ModUnity3DDependency(this ICakeContext context, FilePath projectFolder, string dependencyName, bool state)
+        {
+            // TODO
+        }
+
+        /// <summary>
         /// Locate all installed version of Unity3D.
         /// Warning: This currently only works for Windows and has only been tested on Windows 10.
         /// </summary>

@@ -3,7 +3,7 @@
     /// <summary>
     /// All build options available when performing a Unity3D build.
     /// </summary>
-    public class Unity3DBuildOptions
+    public class Unity3DBuildOptions : IUnity3DBuildOptions
     {
         /// <summary>
         /// Default constructor.
