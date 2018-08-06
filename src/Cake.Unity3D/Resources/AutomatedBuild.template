@@ -82,6 +82,16 @@ namespace Cake.Unity3D
         }
 
         /// <summary>
+        /// Update Visual Studio Project. Used by the Unity3DBuildDependencyContext
+        /// </summary>
+        public static void SyncVS()
+        {
+            Debug.Log("[Cake.Unity3D] Beginning SyncVS");
+            InvokeStatic("UnityEditor.SyncVS", "SyncSolution");
+            Debug.Log("[Cake.Unity3D] SyncVS completed");
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -120,6 +130,32 @@ namespace Cake.Unity3D
                         .Where(x => x.enabled)
                         .Select(x => x.path)
                         .ToArray();
+        }
+
+        /// <summary>
+        /// Utility Function to call static functions of protected Unity Types
+        /// </summary>
+        /// <param name="typeName">FullName of the Target Type</param>
+        /// <param name="methodName">Name of the Target Method</param>
+        /// <param name="args">parameter used for the Invokation</param>
+        private static void InvokeStatic(string typeName, string methodName, params object[] args)
+        {
+            foreach(var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                foreach(var type in asm.GetTypes())
+                {
+                    if(type.FullName == typeName)
+                    {
+                        foreach(var method in type.GetMethods())
+                        {
+                            if(method.IsStatic && method.Name == methodName)
+                            {
+                                method.Invoke(null, args);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
