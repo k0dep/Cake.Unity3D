@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using Cake.Core;
 using Cake.Core.IO;
 using Cake.Common.IO;
 using Cake.Unity3D.Helpers;
 using Cake.Common.Tools.MSBuild;
+using Cake.Common.Solution.Project;
 
 namespace Cake.Unity3D
 {
@@ -89,71 +91,135 @@ namespace Cake.Unity3D
                 }
             }
 
-            // 3. Create or Update Dependency Solution
-            Console.WriteLine($":: Create or Update Dependency Solution");
-            string dependenciySolutionPath = System.IO.Path.Combine(projectFolder, "PacklageAssembly.sln");
-            VisualStudioSolution solution;
-            if (!VisualStudioSolution.TryReadFile(dependenciySolutionPath, out solution))
-            {
-                solution = new VisualStudioSolution();
-            }
+            // 3. Build Dependency Solution
+            Console.WriteLine($":: Build Dependency Solution");
             foreach (var dep in dependencies)
             {
                 foreach (var depAsm in dep.AsmList)
                 {
-                    Console.WriteLine($"+Project {depAsm.Name}.csproj");
-                    solution.AddProject(System.IO.Path.Combine(projectFolder, depAsm.Name + ".csproj"));
+                    string projPath = System.IO.Path.Combine(projectFolder, depAsm.Name + ".csproj");
+                    m_cakeContext.MSBuild(projPath, (settings) =>
+                    {
+                        settings.Configuration = m_buildOptions.DebugBuild ? "Debug" : "Release";
+                    });
                 }
             }
-            VisualStudioSolution.WriteFile(dependenciySolutionPath, solution);
 
-            // 4. Build Dependency Solution
-            Console.WriteLine($":: Build Dependency Solution");
-            m_cakeContext.MSBuild(dependenciySolutionPath, (settings) => 
-            {
-                foreach (var dep in dependencies)
-                {
-                    foreach (var depAsm in dep.AsmList)
-                    {
-                        settings.Targets.Add(depAsm.Name);
-                    }
-                }
-            });
-
-            // 5. Copy Assets to Target
+            // 4. Copy Assets to Target
             Console.WriteLine($":: Copy Assets to Target");
-            string asmBinDir = System.IO.Path.Combine(projectFolder, "Temp/bin/Debug");
+            string asmBinDir = System.IO.Path.Combine(projectFolder,
+                m_buildOptions.DebugBuild ? "Temp/bin/Debug" : "Temp/bin/Release");
             foreach (var dep in dependencies)
             {
                 string depenencySourcePath = System.IO.Path.Combine(projectFolder, "Packages", dep.SourceInfo.Source);
                 string depenencyTargetPath = System.IO.Path.Combine(projectFolder, "Packages", dep.SourceInfo.Target);
 
-                Console.WriteLine($"Copy: {dep.SourceInfo.Source} => {dep.SourceInfo.Target}");
-                Console.WriteLine($"\t{depenencyTargetPath}");
-                Console.WriteLine($"\t{depenencySourcePath}");
+                Information($"Copy: {dep.SourceInfo.Source} => {dep.SourceInfo.Target}");
+                Information($"\t{depenencySourcePath}");
+                Information($"\t{depenencyTargetPath}");
 
+                // Make Target Dir
+                m_cakeContext.EnsureDirectoryExists(depenencyTargetPath);
+
+                // Clear Target Dir form all files not present in Source
+                var existringFiles = m_cakeContext.GetFiles(depenencyTargetPath + "/**/*");
+                string clearPath = System.IO.Path.GetFullPath(depenencyTargetPath).Replace("\\", "/") + "/";
+                foreach (var file in existringFiles)
+                {
+                    if (!file.FullPath.EndsWith(".meta"))
+                    {
+                        string relPath = file.FullPath.Replace(clearPath, "");
+                        string sourcePath = System.IO.Path.Combine(depenencySourcePath, relPath);
+                        if (!m_cakeContext.FileExists(sourcePath))
+                        {
+                            m_cakeContext.DeleteFile(file);
+                        }
+                    }
+                }
+
+                // Copy all Assamblys
                 foreach (var depAsm in dep.AsmList)
                 {
                     // Copy compiled asm files into target dependency
-                    string asmBinPath = System.IO.Path.Combine(asmBinDir, depAsm.Name + ".dll");
-                    m_cakeContext.CopyFile(asmBinPath, depenencyTargetPath);
+                    string asmFileName = depAsm.Name + ".dll";
+                    string asmBinPath = System.IO.Path.Combine(asmBinDir, asmFileName);
+                    Console.WriteLine($"\t{asmBinPath} => {depenencyTargetPath}");
+                    m_cakeContext.CopyFile(asmBinPath, System.IO.Path.Combine(depenencyTargetPath, asmFileName));
+                    if(m_buildOptions.CopyPdb)
+                    {
+                        string pdbFileName = depAsm.Name + ".pdb";
+                        string pdbBinPath = System.IO.Path.Combine(asmBinDir, pdbFileName);
+                        Console.WriteLine($"\t{pdbBinPath} => {depenencyTargetPath}");
+                        m_cakeContext.CopyFile(pdbBinPath, System.IO.Path.Combine(depenencyTargetPath, pdbFileName));
+                    }
                 }
+
                 // Copy all the assets
-                string pattern = depenencySourcePath + "/**/*&exclude=/**/*.cs&exclude==/**/*.asmdef";
-                m_cakeContext.CopyFiles(pattern, depenencyTargetPath, true);
+                IEnumerable<FilePath> fileList = null;
+                if (m_buildOptions.UseSourceMetaFiles)
+                {
+                    fileList = m_cakeContext.GetFiles(depenencySourcePath + "/**/*").Where(f =>
+                    {
+                        return !(f.FullPath.EndsWith(".cs") ||
+                            f.FullPath.EndsWith(".asmdef"));
+                    });
+                }
+                else
+                {
+                    fileList = m_cakeContext.GetFiles(depenencySourcePath + "/**/*").Where(f =>
+                    {
+                        return !(f.FullPath.EndsWith(".cs") ||
+                            f.FullPath.EndsWith(".asmdef") ||
+                            f.FullPath.EndsWith(".meta"));
+                    });
+                }
+                m_cakeContext.CopyFiles(fileList, depenencyTargetPath, true);
             }
         }
 
+        /// <summary>
+        /// Utility function to Log in the same way as in CakeBuild script
+        /// </summary>
+        /// <param name="msg"></param>
+        void Information(string msg)
+        {
+            Console.WriteLine(msg);
+        }
+
+        /// <summary>
+        /// Build informazion for a single Dependency
+        /// </summary>
         class Dependency
         {
+            /// <summary>
+            /// The Finformation from the BuildOptions for this Dependency
+            /// </summary>
             public Unity3DBuildDependencyOptions.Dependency SourceInfo { get; set; }
+
+            /// <summary>
+            /// A list of all Assamblys present inside this Dependency
+            /// </summary>
             public List<DependencyAssambly> AsmList { get; set; } = new List<DependencyAssambly>();
         }
 
+        /// <summary>
+        /// Build information for a single Depndency Assambly
+        /// </summary>
         class DependencyAssambly
         {
+            /// <summary>
+            /// The name of the Dependency this Assambly resides in
+            /// </summary>
             public string DependencyName { get; set; }
+
+            /// <summary>
+            /// The name of the Assambly iteself
+            /// </summary>
             public string Name { get; set; }
+
+            /// <summary>
+            /// The Path to the asmdef file of this Assambly
+            /// </summary>
             public FilePath AsmDefPath { get; set; }
         }
     }

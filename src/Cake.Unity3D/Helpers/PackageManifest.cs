@@ -41,20 +41,6 @@ namespace Cake.Unity3D.Helpers
             }
         }
 
-        /*public IEnumerable<KeyValuePair<string,string>> ListLocalDependencyInfo(string manifestPath)
-        {
-            string root = System.IO.Path.GetDirectoryName(manifestPath);
-            foreach (KeyValuePair<string, string> dependency in dependencies)
-            {
-                if (dependency.Value.StartsWith("file:"))
-                {
-                    string relativePath = dependency.Value.Replace("file:", "");
-                    relativePath = System.IO.Path.Combine(root, relativePath);
-                    yield return new KeyValuePair(dependency.Key, relativePath);
-                }
-            }
-        }*/
-
         public static PackageManifest ReadFile(string path)
         {
             string json = System.IO.File.ReadAllText(path);
