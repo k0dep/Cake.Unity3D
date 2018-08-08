@@ -21,9 +21,17 @@ namespace Cake.Unity3D
         [CakeMethodAlias]
         public static void BuildUnity3DProject(this ICakeContext context, Unity3DProjectOptions projectOptions, Unity3DBuildOptions options)
         {
-            var unityBuildContext = new Unity3DBuildContext(context, projectOptions, options);
-            unityBuildContext.DumpOptions();
-            unityBuildContext.Build();
+            try
+            {
+                var unityBuildContext = new Unity3DBuildContext(context, projectOptions, options);
+                unityBuildContext.DumpOptions();
+                unityBuildContext.Build();
+            }
+            catch(System.Exception ex)
+            {
+                System.Console.WriteLine(ex.Message);
+                System.Console.WriteLine(ex.StackTrace);
+            }
         }
 
         /// <summary>

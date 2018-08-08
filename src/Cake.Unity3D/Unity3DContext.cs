@@ -36,6 +36,16 @@ namespace Cake.Unity3D
         /// <param name="options">The build options to use when building the project.</param>
         public Unity3DContext(ICakeContext context, Unity3DProjectOptions projectOptions, T options)
         {
+            if (projectOptions == null)
+            {
+                throw new Exception("Project Options must be set.");
+            }
+
+            if (options == null)
+            {
+                throw new Exception("Build Options mus be set.");
+            }
+
             m_cakeContext = context;
             m_projectOptions = projectOptions;
             m_buildOptions = options;
@@ -137,7 +147,7 @@ namespace Cake.Unity3D
             {
                 foreach (KeyValuePair<string, string> arg in args)
                 {
-                    buildArguments += $"{arg.Key}={arg.Value}";
+                    buildArguments += $"{arg.Key}={arg.Value} ";
                 }
             }
 
