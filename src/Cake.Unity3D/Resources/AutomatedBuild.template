@@ -26,10 +26,11 @@ namespace Cake.Unity3D
 
             var buildPlayerOptions = new BuildPlayerOptions
             {
-                scenes = FindEnabledEditorScenes(),
+                scenes = FindBuildScenes(options),
                 locationPathName = ParseOption(options, "output-path", string.Empty),
                 target = ParseOption(options, "platform", BuildTarget.StandaloneWindows64),
-                options = BuildOptions.None
+                options = ParseOption(options, "options", BuildOptions.None),
+                assetBundleManifestPath = ParseOption(options, "asset-bundle-manifest-path", ""),
             };
 
             var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
@@ -49,6 +50,16 @@ namespace Cake.Unity3D
 #endif
 
             Debug.Log("[Cake.Unity3D] Automated build completed");
+        }
+
+        /// <summary>
+        /// Update Visual Studio Project. Used by the Unity3DBuildDependencyContext
+        /// </summary>
+        public static void SyncVS()
+        {
+            Debug.Log("[Cake.Unity3D] Beginning SyncVS");
+            InvokeStatic("UnityEditor.SyncVS", "SyncSolution");
+            Debug.Log("[Cake.Unity3D] SyncVS completed");
         }
 
         /// <summary>
@@ -82,16 +93,6 @@ namespace Cake.Unity3D
         }
 
         /// <summary>
-        /// Update Visual Studio Project. Used by the Unity3DBuildDependencyContext
-        /// </summary>
-        public static void SyncVS()
-        {
-            Debug.Log("[Cake.Unity3D] Beginning SyncVS");
-            InvokeStatic("UnityEditor.SyncVS", "SyncSolution");
-            Debug.Log("[Cake.Unity3D] SyncVS completed");
-        }
-
-        /// <summary>
         /// 
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -118,6 +119,26 @@ namespace Cake.Unity3D
             }
 
             return (T)Convert.ChangeType(value, typeof(T));
+        }
+
+        /// <summary>
+        /// Get a list of all scenes used by this build.
+        /// If the scenes parameter is supplyed in options it returense the scnes from options.
+        /// Otherwise it returns the scenes found by FindEnabledEditorScenes().
+        /// </summary>
+        /// <param name="options"></param>
+        /// <returns></returns>
+        private static string[] FindBuildScenes(Dictionary<string,string> options)
+        {
+            string scenes = ParseOption(options, "scenes", "");
+            if(string.IsNullOrEmpty(scenes))
+            {
+                return FindEnabledEditorScenes();
+            }
+            else
+            {
+                return scenes.Split(';');
+            }
         }
 
         /// <summary>

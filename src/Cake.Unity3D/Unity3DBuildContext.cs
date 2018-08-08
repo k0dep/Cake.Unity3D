@@ -64,7 +64,19 @@ namespace Cake.Unity3D
             Dictionary<string, string> args = new Dictionary<string, string>();
             args.Add("--output-path", m_buildOptions.OutputPath);
             args.Add("--platform", m_buildOptions.Platform.ToString());
-
+            if(!string.IsNullOrEmpty(m_buildOptions.AssetBundleManifestPath))
+            {
+                args.Add("--asset-bundle-manifest-path", m_buildOptions.AssetBundleManifestPath);
+            }
+            if(m_buildOptions.Options != Unity3DBuildPlayerOptions.None)
+            {
+                // TODO : make shure it gets emitted as enum with | divider
+                args.Add("--options", m_buildOptions.Options.ToString());
+            }
+            if (m_buildOptions.Scenes != null)
+            {
+                args.Add("--scenes", string.Join(";", m_buildOptions.Scenes ));
+            }
             if (!string.IsNullOrEmpty(m_buildOptions.BuildVersion))
             {
                 args.Add("--version", m_buildOptions.BuildVersion);
