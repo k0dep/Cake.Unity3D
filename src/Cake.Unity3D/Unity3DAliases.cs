@@ -1,7 +1,8 @@
-﻿using Cake.Core.Annotations;
+﻿using System.Collections.Generic;
+using Cake.Core.Annotations;
 using Cake.Core.IO;
 using Cake.Core;
-using System.Collections.Generic;
+using Cake.Unity3D.Helpers;
 
 namespace Cake.Unity3D
 {
@@ -44,12 +45,48 @@ namespace Cake.Unity3D
         /// </summary>
         /// <param name="context">The active cake context.</param>
         /// <param name="projectOptions">The Unity3d Project options to use when building the project.</param>
-        /// <param name="dependencyName">Name of the Depenendency</param>
-        /// <param name="state">State of the dependency</param>
+        /// <param name="dependencyName">Name of the Depenendency. in com.org.packet format</param>
+        /// <param name="value">Version of file:{fileName} of the dependency</param>
         [CakeMethodAlias]
-        public static void ModUnity3DDependency(this ICakeContext context, Unity3DProjectOptions projectOptions, string dependencyName, bool state)
+        public static void SetUnity3DDependency(this ICakeContext context, Unity3DProjectOptions projectOptions, string dependencyName, string value)
         {
-            // TODO
+            string path = System.IO.Path.Combine(projectOptions.ProjectFolder.ToString(), "Packages/manifest.json");
+            var manifest = PackageManifest.ReadFile(path);
+            bool hasChange = false;
+
+            if(string.IsNullOrEmpty(value))
+            {
+                if(manifest.dependencies.ContainsKey(dependencyName))
+                {
+                    // Clear Entry
+                    manifest.dependencies.Remove(dependencyName);
+                    hasChange = true;
+                    System.Console.WriteLine($"- {dependencyName}");
+                }
+            }
+            else
+            {
+                string currentValue;
+                if(!manifest.dependencies.TryGetValue(dependencyName, out currentValue))
+                {
+                    // Add Entry
+                    manifest.dependencies.Add(dependencyName, value);
+                    hasChange = true;
+                    System.Console.WriteLine($"+ {dependencyName} => {value}");
+                }
+                else if(currentValue != value)
+                {
+                    // Update Entry
+                    manifest.dependencies[dependencyName] = value;
+                    hasChange = true;
+                    System.Console.WriteLine($"  {dependencyName} => {value}");
+                }
+            }
+
+            if (hasChange)
+            {
+                PackageManifest.WriteFile(path, manifest);
+            }
         }
 
         /// <summary>

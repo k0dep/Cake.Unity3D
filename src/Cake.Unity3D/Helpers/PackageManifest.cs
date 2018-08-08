@@ -8,39 +8,6 @@ namespace Cake.Unity3D.Helpers
     {
         public Dictionary<string, string> dependencies;
 
-        public void SetDependencyVersion(string name, string version)
-        {
-            if (dependencies.ContainsKey(name))
-            {
-                dependencies[name] = version;
-            }
-            else
-            {
-                dependencies.Add(name, version);
-            }
-        }
-
-        public void SetDependencyFile(string name, string path)
-        {
-            string value = "file:" + path;
-            if (dependencies.ContainsKey(name))
-            {
-                dependencies[name] = value;
-            }
-            else
-            {
-                dependencies.Add(name, value);
-            }
-        }
-
-        public void ClearDependency(string name)
-        {
-            if (dependencies.ContainsKey(name))
-            {
-                dependencies.Remove(name);
-            }
-        }
-
         public static PackageManifest ReadFile(string path)
         {
             string json = System.IO.File.ReadAllText(path);
