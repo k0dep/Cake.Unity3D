@@ -32,6 +32,13 @@ namespace Cake.Unity3D
                 options = ParseOption(options, "options", BuildOptions.None),
                 assetBundleManifestPath = ParseOption(options, "asset-bundle-manifest-path", ""),
             };
+            
+            Debug.Log($"bundleVersion:{PlayerSettings.bundleVersion}");
+            Debug.Log($"scenes:{string.Join(";",buildPlayerOptions.scenes)}");
+            Debug.Log($"locationPathName:{buildPlayerOptions.locationPathName}");
+            Debug.Log($"target:{buildPlayerOptions.target}");
+            Debug.Log($"options:{buildPlayerOptions.options}");
+            Debug.Log($"assetBundleManifestPath:{buildPlayerOptions.assetBundleManifestPath}");
 
             var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
 
@@ -62,6 +69,406 @@ namespace Cake.Unity3D
             Debug.Log("[Cake.Unity3D] SyncVS completed");
         }
 
+        [MenuItem("Cake3D/SetPlayerSettings")]
+        public static void SetPlayerSettings()
+        {
+            Debug.Log("[Cake.Unity3D] Set Player Settings");
+
+            var options = ParseCommandLineOptions();
+
+            foreach (KeyValuePair<string, string> setting in options)
+            {
+                SetSetting(setting.Key, setting.Value);
+            }
+
+            Debug.Log("[Cake.Unity3D] Set Player Settings completed");
+        }
+
+        static void SetSetting(string key, string value)
+        {
+            if(!TrySetSpecialSetting(key, value))
+            {
+                SetSettingGeneric(key, value);
+            }
+        }
+
+        static void ForEachTargetGroup(System.Action<BuildTargetGroup> action)
+        {
+            action(BuildTargetGroup.Android);
+            action(BuildTargetGroup.Facebook);
+            action(BuildTargetGroup.iOS);
+            action(BuildTargetGroup.N3DS);
+            action(BuildTargetGroup.PS4);
+            action(BuildTargetGroup.PSP2);
+            action(BuildTargetGroup.Standalone);
+            action(BuildTargetGroup.Switch);
+            action(BuildTargetGroup.tvOS);
+            action(BuildTargetGroup.Unknown);
+            action(BuildTargetGroup.WebGL);
+            action(BuildTargetGroup.WSA);
+            action(BuildTargetGroup.XboxOne);
+
+#if !UNITY_2018_1_OR_NEWER
+            action(BuildTargetGroup.WiiU);
+#endif
+#if !UNITY_2017_3_OR_NEWER
+            action(BuildTargetGroup.SamsungTV);
+            action(BuildTargetGroup.Tizen);
+#endif
+#if !UNITY_5_5_OR_NEWER
+            action(BuildTargetGroup.XBOX360);
+#endif
+#if !UNITY_5_4_OR_NEWER
+            action(BuildTargetGroup.BlackBerry);
+            action(BuildTargetGroup.WebPlayer);
+#endif
+#if !UNITY_5_5_OR_NEWER
+            action(BuildTargetGroup.PS3);
+#endif
+#if !UNITY_5_3_OR_NEWER
+            action(BuildTargetGroup.PSM);
+#endif
+        }
+
+        static void IfHasValue<T>(System.Action<T> action, string input)
+        {
+            T value; 
+            if(TryGetValue<T>(input, out value))
+            {
+                action(value);
+            }
+        }
+
+        static void IfHasValue<T1,T2>(System.Action<T1,T2> action, string input1, string input2)
+        {
+            T1 value1;
+            if (!TryGetValue<T1>(input1, out value1))
+            {
+                return;
+            }
+            T2 value2;
+            if (!TryGetValue<T2>(input2, out value2))
+            {
+                return;
+            }
+            action(value1, value2);
+        }
+
+        static bool TryGetSpecialOption(ref string key, out string option)
+        {
+            int index = key.IndexOf(':');
+            if (index >= 0)
+            {
+                key = key.Substring(0, index);
+                option = key.Substring(index + 1, key.Length - index - 1);
+                return true;
+            }
+            option = "";
+            return false;
+        }
+
+        static bool TrySetSpecialSetting(string key, string value)
+        {
+            string option;
+            TryGetSpecialOption(ref key, out option);
+
+            switch (key)
+            {
+                case "applicationIdentifier":
+                    ForEachTargetGroup((group) => { PlayerSettings.SetApplicationIdentifier(group, value); });
+                    Debug.Log($"[Cake.Unity3D]\t{key} => {value}");
+                    return true;
+                case "stackTraceLogType":
+                    IfHasValue<LogType, StackTraceLogType>((logType, stackTraceType) => {
+                        PlayerSettings.SetStackTraceLogType(logType, stackTraceType);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({logType}) => {value}");
+                    }, option, value);
+                    return true;
+                case "aspectRatio":
+                    IfHasValue<AspectRatio, bool>((aspectRatio, enable) => {
+                        PlayerSettings.SetAspectRatio(aspectRatio, enable);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({aspectRatio}) => {value}");
+                    }, option, value);
+                    return true;
+                case "":
+                    IfHasValue<BuildTarget, string[]>((buildTarget, graphicsAPIs) => {
+                        foreach(string graphicsAPI in graphicsAPIs)
+                        {
+                            if(graphicsAPI == "DoNotUseDefault")
+                            {
+                                PlayerSettings.SetUseDefaultGraphicsAPIs(buildTarget, false);
+                                Debug.Log($"[Cake.Unity3D]\t{key}({buildTarget}, UseDefault) => false");
+                            }
+                            else if(graphicsAPI == "UseDefault")
+                            {
+                                PlayerSettings.SetUseDefaultGraphicsAPIs(buildTarget, true);
+                                Debug.Log($"[Cake.Unity3D]\t{key}({buildTarget}, UseDefault) => true");
+                            }
+                            else
+                            {
+                                IfHasValue<UnityEngine.Rendering.GraphicsDeviceType[]>((deviceTypes) => {
+                                    PlayerSettings.SetGraphicsAPIs(buildTarget, deviceTypes);
+                                    Debug.Log($"[Cake.Unity3D]\t{key}({buildTarget}) => {graphicsAPI}");
+                                }, graphicsAPI);
+                            }
+                        }
+                        Debug.Log($"[Cake.Unity3D]\t{key}({aspectRatio}) => {value}");
+                    }, option, value);
+                    break;
+            }
+            return false;
+        }
+
+        static void SetSettingGeneric(string key, string value)
+        {
+            string property;
+            Type t = GetType(key, out property);
+            if (t != null)
+            {
+                var info = t.GetProperty(property);
+
+                if (info != null)
+                {
+                    object objValue;
+                    if (TryGetValue(info.PropertyType, value, out objValue))
+                    {
+                        info.SetValue(null, objValue);
+                        Debug.Log($"[Cake.Unity3D]\t{t.Name}.{info.Name} => {value}");
+                    }
+                    else
+                    {
+                        Debug.LogError($"[Cake.Unity3D] Unable to get value for PlayerSettings.{property} tryed to parse '{value}'");
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"[Cake.Unity3D] Unable to Find PlayerSettings.Property '{property}'");
+                }
+            }
+            else
+            {
+                Debug.LogError($"[Cake.Unity3D] Unkown Type '{key}'");
+            }
+        }
+
+        static readonly Type PlayerSettingsType = typeof(PlayerSettings);
+        static readonly Type PlayerSettingsAndroidType = typeof(PlayerSettings.Android);
+        static readonly Type PlayerSettingsFacebookType = typeof(PlayerSettings.Facebook);
+        static readonly Type PlayerSettingsiOSType = typeof(PlayerSettings.iOS);
+        static readonly Type PlayerSettingsMacOSType = typeof(PlayerSettings.macOS);
+        static readonly Type PlayerSettingsN3DSType = typeof(PlayerSettings.N3DS);
+        static readonly Type PlayerSettingsPS4Type = typeof(PlayerSettings.PS4);
+        static readonly Type PlayerSettingsPSVitaType = typeof(PlayerSettings.PSVita);
+        static readonly Type PlayerSettingsSplashScreenType = typeof(PlayerSettings.SplashScreen);
+        static readonly Type PlayerSettingsSwitchType = typeof(PlayerSettings.Switch);
+        static readonly Type PlayerSettingsTvOSType = typeof(PlayerSettings.tvOS);
+        static readonly Type PlayerSettingsVRCardboardType = typeof(PlayerSettings.VRCardboard);
+        static readonly Type PlayerSettingsVRDaydreamType = typeof(PlayerSettings.VRDaydream);
+        static readonly Type PlayerSettingsVROculusType = typeof(PlayerSettings.VROculus);
+        static readonly Type PlayerSettingsWebGLType = typeof(PlayerSettings.WebGL);
+        static readonly Type PlayerSettingsWSAType = typeof(PlayerSettings.WSA);
+        static readonly Type PlayerSettingsXboxOneType = typeof(PlayerSettings.XboxOne);
+        static Type GetType(string typeInfo, out string property)
+        {
+            int index = typeInfo.LastIndexOf('.');
+            if (index >= 0)
+            {
+                string subType = typeInfo.Substring(0, index);
+                property = typeInfo.Substring(index + 1, typeInfo.Length - index - 1);
+                switch (subType.ToLower())
+                {
+                    case "android":
+                        return PlayerSettingsAndroidType;
+                    case "facebook":
+                        return PlayerSettingsFacebookType;
+                    case "ios":
+                        return PlayerSettingsiOSType;
+                    case "macos":
+                        return PlayerSettingsMacOSType;
+                    case "n3ds":
+                        return PlayerSettingsN3DSType;
+                    case "ps4":
+                        return PlayerSettingsPS4Type;
+                    case "psvita":
+                        return PlayerSettingsPSVitaType;
+                    case "splashscreen":
+                        return PlayerSettingsSplashScreenType;
+                    case "switch":
+                        return PlayerSettingsSwitchType;
+                    case "tvos":
+                        return PlayerSettingsTvOSType;
+                    case "vrcardboard":
+                        return PlayerSettingsVRCardboardType;
+                    case "vrdaydream":
+                        return PlayerSettingsVRDaydreamType;
+                    case "vroculus":
+                        return PlayerSettingsVROculusType;
+                    case "webgl":
+                        return PlayerSettingsWebGLType;
+                    case "wsa":
+                        return PlayerSettingsWSAType;
+                    case "xboxone":
+                        return PlayerSettingsXboxOneType;
+                }
+            }
+            property = typeInfo;
+            return PlayerSettingsType;
+        }
+
+        static bool TryGetValue<T>(string input, out T value)
+        {
+            object objValue;
+            if(TryGetValue(typeof(T), input, out objValue))
+            {
+                value = (T)objValue;
+                return true;
+            }
+            value = default(T);
+            return false;
+        }
+
+        static bool TryGetValue(Type type, string input, out object value)
+        {
+            if(type == typeof(string))
+            {
+                value = input;
+                return true;
+            }
+            else if(type == typeof(string[]))
+            {
+                value = input.Split(',');
+                return true;
+            }
+            else if (type == typeof(bool))
+            {
+                bool parseValue;
+                if (bool.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(int))
+            {
+                int parseValue;
+                if(int.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(byte))
+            {
+                byte parseValue;
+                if (byte.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(short))
+            {
+                short parseValue;
+                if (short.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(ushort))
+            {
+                ushort parseValue;
+                if (ushort.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(uint))
+            {
+                uint parseValue;
+                if (uint.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(long))
+            {
+                long parseValue;
+                if (long.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(ulong))
+            {
+                ulong parseValue;
+                if (ulong.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if(type.IsArray)
+            {
+                Type elemType = type.GetElementType();
+                string[] strings = input.Split(',');
+                object[] values = new object[strings.Length];
+                for(int i = 0; i < strings.Length; i++)
+                {
+                    if (!TryGetValue(elemType, strings[i], out values[i]))
+                    {
+                        value = null;
+                        return false;
+                    }
+                }
+                value = values;
+                return true;
+            }
+            else if (type.IsEnum)
+            {
+                try
+                {
+                    value = Enum.Parse(type, input);
+                    return true;
+                }
+                catch(Exception)
+                {
+
+                }
+            }
+            else if (type == typeof(Texture2D))
+            {
+                object obj = AssetDatabase.LoadAssetAtPath(input, typeof(Texture2D));
+                if(obj != null && obj is Texture2D)
+                {
+                    value = obj;
+                    return true;
+                }
+            }
+            value = null;
+            return false;
+        }
+
+        public static IEnumerable<string> Split(this string str,
+                                            Func<char, bool> controller)
+        {
+            int nextPiece = 0;
+
+            for (int c = 0; c < str.Length; c++)
+            {
+                if (controller(str[c]))
+                {
+                    yield return str.Substring(nextPiece, c - nextPiece);
+                    nextPiece = c + 1;
+                }
+            }
+
+            yield return str.Substring(nextPiece);
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -69,6 +476,7 @@ namespace Cake.Unity3D
         private static Dictionary<string, string> ParseCommandLineOptions()
         {
             var cmdLineArgs = Environment.GetCommandLineArgs();
+            //var cmdLineArgs = @"Running: C:/Program Files/Unity/Hub/Editor/2018.2.1f1/Editor/Unity.exe -batchmode -quit -projectPath client -executeMethod Cake.Unity3D.AutomatedBuild.SetPlayerSettings --CompanyName=Wolpertingergames --ProductName=TestApp Come on --ApplicationIdentifier=com.woplertingertgame.testapp --BundleVersion=0.1 --StrippingLevel=UseMicroMSCorlib --ShowUnitySplashScreen=False --Android.BundleVersionCode=1 --Android.MinSdkVersion=16".Split();
 
             var options = new Dictionary<string, string>();
 

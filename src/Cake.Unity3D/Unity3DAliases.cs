@@ -97,6 +97,14 @@ namespace Cake.Unity3D
             }
         }
 
+        [CakeMethodAlias]
+        public static void SetUnity3DPlayerSettings(this ICakeContext context, Unity3DProjectOptions projectOptions, Unity3DPlayerSettings settings)
+        {
+            var jobContext = new Unity3DPlayerContext(context, projectOptions, settings);
+            jobContext.DumpOptions();
+            jobContext.Build();
+        }
+
         /// <summary>
         /// Locate all installed version of Unity3D.
         /// Warning: This currently only works for Windows and has only been tested on Windows 10.

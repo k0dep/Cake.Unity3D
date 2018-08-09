@@ -78,24 +78,44 @@ namespace Cake.Unity3D
             Dictionary<string, string> args = new Dictionary<string, string>();
             args.Add("--output-path", m_buildOptions.OutputPath);
             args.Add("--platform", m_buildOptions.Platform.ToString());
-            if(!string.IsNullOrEmpty(m_buildOptions.AssetBundleManifestPath))
-            {
-                args.Add("--asset-bundle-manifest-path", m_buildOptions.AssetBundleManifestPath);
-            }
-            if(m_buildOptions.Options != Unity3DBuildPlayerOptions.None)
-            {
-                args.Add("--options", string.Join(",", m_buildOptions.Options.GetIndividualFlags()));
-            }
-            if (m_buildOptions.Scenes != null)
-            {
-                args.Add("--scenes", string.Join(";", m_buildOptions.Scenes ));
-            }
-            if (!string.IsNullOrEmpty(m_buildOptions.BuildVersion))
-            {
-                args.Add("--version", m_buildOptions.BuildVersion);
-            }
+            AddParamIfSet(args, "--asset-bundle-manifest-path", m_buildOptions.AssetBundleManifestPath);
+            AddParamIfSet(args, "--options", m_buildOptions.Options);
+            AddParamIfSet(args, "--scenes", m_buildOptions.Scenes);
+            AddParamIfSet(args, "--version", m_buildOptions.BuildVersion);
 
             RunUnityCommand("Cake.Unity3D.AutomatedBuild.Build", args);
+        }
+
+        void AddParamIfSet(Dictionary<string, string> args, string key, object value)
+        {
+            if (value != null)
+            {
+                args.Add(key, value.ToString());
+            }
+        }
+
+        void AddParamIfSet(Dictionary<string, string> args, string key, string value)
+        {
+            if(!string.IsNullOrWhiteSpace(value))
+            {
+                args.Add(key, value);
+            }
+        }
+
+        void AddParamIfSet(Dictionary<string, string> args, string key, IEnumerable<string> values)
+        {
+            if (values != null)
+            {
+                AddParamIfSet(args, key, string.Join(",", values));
+            }
+        }
+
+        void AddParamIfSet(Dictionary<string, string> args, string key, Enum value)
+        {
+            if(value.HasFlag(value))
+            {
+                AddParamIfSet(args, key, string.Join(",", value.GetIndividualFlags()));
+            }
         }
     }
 }
