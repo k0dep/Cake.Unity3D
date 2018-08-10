@@ -147,7 +147,7 @@ namespace Cake.Unity3D
             {
                 foreach (KeyValuePair<string, string> arg in args)
                 {
-                    buildArguments += $"{arg.Key}={arg.Value} ";
+                    buildArguments += $"--{arg.Key}={arg.Value} ";
                 }
             }
 

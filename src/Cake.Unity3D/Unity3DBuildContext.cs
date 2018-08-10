@@ -76,12 +76,12 @@ namespace Cake.Unity3D
             base.Build();
 
             Dictionary<string, string> args = new Dictionary<string, string>();
-            args.Add("--output-path", m_buildOptions.OutputPath);
-            args.Add("--platform", m_buildOptions.Platform.ToString());
-            AddParamIfSet(args, "--asset-bundle-manifest-path", m_buildOptions.AssetBundleManifestPath);
-            AddParamIfSet(args, "--options", m_buildOptions.Options);
-            AddParamIfSet(args, "--scenes", m_buildOptions.Scenes);
-            AddParamIfSet(args, "--version", m_buildOptions.BuildVersion);
+            args.Add("output-path", m_buildOptions.OutputPath);
+            args.Add("platform", m_buildOptions.Platform.ToString());
+            AddParamIfSet(args, "asset-bundle-manifest-path", m_buildOptions.AssetBundleManifestPath);
+            AddParamIfSet(args, "options", m_buildOptions.Options);
+            AddParamIfSet(args, "scenes", m_buildOptions.Scenes);
+            AddParamIfSet(args, "version", m_buildOptions.BuildVersion);
 
             RunUnityCommand("Cake.Unity3D.AutomatedBuild.Build", args);
         }

@@ -69,6 +69,19 @@ namespace Cake.Unity3D
             Debug.Log("[Cake.Unity3D] SyncVS completed");
         }
 
+        [MenuItem("Cake3D/GetAssetPath")]
+        public static void GetAssetPath()
+        {
+            string path = AssetDatabase.GetAssetPath(UnityEditor.Selection.activeObject);
+            Debug.Log(path);
+
+            object obj = AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
+            if (obj != null && obj is Texture2D)
+            {
+                Debug.Log("Loading Worked :" + obj.ToString());
+            }
+        }
+
         [MenuItem("Cake3D/SetPlayerSettings")]
         public static void SetPlayerSettings()
         {
@@ -159,8 +172,10 @@ namespace Cake.Unity3D
             int index = key.IndexOf(':');
             if (index >= 0)
             {
-                key = key.Substring(0, index);
-                option = key.Substring(index + 1, key.Length - index - 1);
+                string prefix = key.Substring(0, index);
+                string surfix = key.Substring(index + 1, key.Length - index - 1);
+                key = prefix;
+                option = surfix;
                 return true;
             }
             option = "";
@@ -192,7 +207,9 @@ namespace Cake.Unity3D
                     return true;
                 case "graphicsAPIs":
                     IfHasValue<BuildTarget, string[]>((buildTarget, graphicsAPIs) => {
-                        foreach(string graphicsAPI in graphicsAPIs)
+                        List<string> setApiList = new List<string>();
+                        // Filter out the DoNotUseDefault and UseDefault enums
+                        foreach (string graphicsAPI in graphicsAPIs)
                         {
                             if(graphicsAPI == "DoNotUseDefault")
                             {
@@ -206,68 +223,71 @@ namespace Cake.Unity3D
                             }
                             else
                             {
-                                IfHasValue<UnityEngine.Rendering.GraphicsDeviceType[]>((deviceTypes) => {
-                                    PlayerSettings.SetGraphicsAPIs(buildTarget, deviceTypes);
-                                    Debug.Log($"[Cake.Unity3D]\t{key}({buildTarget}) => {graphicsAPI}");
-                                }, graphicsAPI);
+                                setApiList.Add(graphicsAPI);                                
                             }
                         }
+                        // Join the rest and apply
+                        string setApis = string.Join(",", setApiList);
+                        IfHasValue<UnityEngine.Rendering.GraphicsDeviceType[]>((deviceTypes) => {
+                            PlayerSettings.SetGraphicsAPIs(buildTarget, deviceTypes);
+                            Debug.Log($"[Cake.Unity3D]\t{key}({buildTarget}) => {setApis}");
+                        }, setApis);
                     }, option, value);
-                    break;
+                    return true;
                 case "il2CppCompilerConfiguration":
                     IfHasValue<BuildTargetGroup, Il2CppCompilerConfiguration>((targetGroup, configuration) => {
                         PlayerSettings.SetIl2CppCompilerConfiguration(targetGroup, configuration);
                         Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
                     }, option, value);
-                    break;
+                    return true;
                 case "incrementalIl2CppBuild":
                     IfHasValue<BuildTargetGroup, bool>((targetGroup, configuration) => {
                         PlayerSettings.SetIncrementalIl2CppBuild(targetGroup, configuration);
                         Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
                     }, option, value);
-                    break;
+                    return true;
                 case "scriptingBackend":
                     IfHasValue<BuildTargetGroup, ScriptingImplementation>((targetGroup, configuration) => {
                         PlayerSettings.SetScriptingBackend(targetGroup, configuration);
                         Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
                     }, option, value);
-                    break;
+                    return true;
                 case "scriptingDefineSymbolsForGroup":
                     IfHasValue<BuildTargetGroup, string>((targetGroup, configuration) => {
                         PlayerSettings.SetScriptingDefineSymbolsForGroup(targetGroup, configuration);
                         Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
                     }, option, value);
-                    break;
+                    return true;
                 case "preloadedAssets":
                     IfHasValue<UnityEngine.Object[]>((objects) => {
                         PlayerSettings.SetPreloadedAssets(objects);
                         Debug.Log($"[Cake.Unity3D]\t{key} => {value}");
                     }, value);
-                    break;
+                    return true;
                 case "iconsForTargetGroup":
                     IfHasValue<BuildTargetGroup, Texture2D[]>((targetGroup, icons) => {
                         PlayerSettings.SetIconsForTargetGroup(targetGroup, icons);
                         Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
                     }, option, value);
-                    break;
+                    return true;
                 case "iOS.iPadLaunchScreenType":
                     IfHasValue<iOSLaunchScreenType>((type) => {
                         PlayerSettings.iOS.SetiPadLaunchScreenType(type);
                         Debug.Log($"[Cake.Unity3D]\t{key} => {value}");
                     }, value);
-                    break;
+                    return true;
                 case "iOS.iPhoneLaunchScreenType":
                     IfHasValue<iOSLaunchScreenType>((type) => {
                         PlayerSettings.iOS.SetiPhoneLaunchScreenType(type);
                         Debug.Log($"[Cake.Unity3D]\t{key} => {value}");
                     }, value);
-                    break;
+                    return true;
                 case "iOS.launchScreenImage":
                     IfHasValue<iOSLaunchScreenImageType, Texture2D>((type, texture) => {
                         PlayerSettings.iOS.SetLaunchScreenImage(texture, type);
                         Debug.Log($"[Cake.Unity3D]\t{key}({type}) => {value}");
                     }, option, value);
-                    break;
+                    return true;
             }
             return false;
         }
@@ -280,7 +300,7 @@ namespace Cake.Unity3D
             {
                 var info = t.GetProperty(property);
 
-                if (info != null)
+                if (info != null && info.CanWrite)
                 {
                     object objValue;
                     if (TryGetValue(info.PropertyType, value, out objValue))
@@ -295,7 +315,7 @@ namespace Cake.Unity3D
                 }
                 else
                 {
-                    Debug.LogError($"[Cake.Unity3D] Unable to Find PlayerSettings.Property '{property}'");
+                    Debug.LogError($"[Cake.Unity3D] Unable to Find PlayerSettings.Property Set '{property}'");
                 }
             }
             else
@@ -464,18 +484,38 @@ namespace Cake.Unity3D
                     return true;
                 }
             }
+            else if (type == typeof(float))
+            {
+                float parseValue;
+                if (float.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
+            else if (type == typeof(double))
+            {
+                double parseValue;
+                if (double.TryParse(input, out parseValue))
+                {
+                    value = parseValue;
+                    return true;
+                }
+            }
             else if(type.IsArray)
             {
                 Type elemType = type.GetElementType();
                 string[] strings = input.Split(',');
-                object[] values = new object[strings.Length];
+                Array values = (Array)Activator.CreateInstance(type, new object[] { strings.Length });
                 for(int i = 0; i < strings.Length; i++)
                 {
-                    if (!TryGetValue(elemType, strings[i], out values[i]))
+                    object elemValue;
+                    if (!TryGetValue(elemType, strings[i], out elemValue))
                     {
                         value = null;
                         return false;
                     }
+                    values.SetValue(elemValue, i);
                 }
                 value = values;
                 return true;
@@ -512,7 +552,6 @@ namespace Cake.Unity3D
             }
             else if (type == typeof(Sprite))
             {
-                // TODO path to sprite ???
                 object obj = AssetDatabase.LoadAssetAtPath(input, typeof(Sprite));
                 if (obj != null && obj is Sprite)
                 {
@@ -573,9 +612,9 @@ namespace Cake.Unity3D
         /// </summary>
         /// <returns></returns>
         private static Dictionary<string, string> ParseCommandLineOptions()
-        {
-            var cmdLineArgs = Environment.GetCommandLineArgs();
-            //var cmdLineArgs = @"Running: C:/Program Files/Unity/Hub/Editor/2018.2.1f1/Editor/Unity.exe -batchmode -quit -projectPath client -executeMethod Cake.Unity3D.AutomatedBuild.SetPlayerSettings --CompanyName=Wolpertingergames --ProductName=TestApp Come on --ApplicationIdentifier=com.woplertingertgame.testapp --BundleVersion=0.1 --StrippingLevel=UseMicroMSCorlib --ShowUnitySplashScreen=False --Android.BundleVersionCode=1 --Android.MinSdkVersion=16".Split();
+        {  
+            //var cmdLineArgs = Environment.GetCommandLineArgs();
+            var cmdLineArgs = @"--companyName=Wolpertingergames --productName=Test\ App\ Come\ on --applicationIdentifier=com.woplertingertgame.testapp --bundleVersion=0.1 --apiCompatibilityLevel=NET_4_6 --actionOnDotNetUnhandledException=Crash --logObjCUncaughtExceptions=True --enableCrashReportAPI=True --strippingLevel=UseMicroMSCorlib --stripEngineCode=True --usePlayerLog=True --resizableWindow=False --defaultIsFullScreen=True --defaultIsNativeResolution=True --defaultScreenWidth=1920 --defaultScreenHeight=1080 --defaultWebScreenWidth=1208 --defaultWebScreenHeight=720 --captureSingleScreen=True --runInBackground=False --preloadedAssets=Assets/PreLoad0.txt,Assets/PreLoad1.txt --displayResolutionDialog=Disabled --virtualRealitySplashScreen=Assets/Splash/VR.png --showUnitySplashScreen=False --splashScreenStyle=Dark --splashScreen.animationMode=Dolly --splashScreen.animationBackgroundZoom=1 --splashScreen.animationLogoZoom=1 --splashScreen.background=Assets/Splash/Backgrounbd.png --splashScreen.backgroundPortrait=Assets/Splash/Portrait.png --splashScreen.backgroundColor=#99ccff --splashScreen.drawMode=AllSequential --splashScreen.logos=Assets/Splash/Logo1.png:0.5,Assets/Splash/Logo2.png:0.5 --splashScreen.overlayOpacity=0.75 --splashScreen.show=True --splashScreen.showUnityLogo=False --splashScreen.unityLogoStyle=LightOnDark --use32BitDisplayBuffer=True --colorSpace=Linear --stripUnusedMeshComponents=False --bakeCollisionMeshes=False --defaultInterfaceOrientation=LandscapeRight --allowedAutorotateToPortrait=True --allowedAutorotateToPortraitUpsideDown=True --allowedAutorotateToLandscapeRight=False --allowedAutorotateToLandscapeLeft=False --useAnimatedAutorotation=True --statusBarHidden=True --useMacAppStoreValidation=False --macRetinaSupport=True --macos.buildNumber=0.1-mac --iOS.applicationDisplayName=App on iOS --iOS.buildNumber=0.1-ios --iOS.targetDevice=iPhoneAndiPad --iOS.targetOSVersionString=7 --iOS.sdkVersion=DeviceSDK --iOS.appleDeveloperTeamID=Wolpertinger Games UG (haftungsbeschraenkt) --iOS.tvOSManualProvisioningProfileID=Some Manual Provision --iOS.iOSManualProvisioningProfileID=Another Manual Provision --iOS.microphoneUsageDescription=Microphone Not Used --iOS.locationUsageDescription=Location Not Used --iOS.cameraUsageDescription=Camera Not Used --iOS.allowHTTPDownload=False --iOS.forceHardShadowsOnMetal=False --iOS.exitOnSuspend=False --iOS.useOnDemandResources=False --iOS.appleEnableAutomaticSigning=True --iOS.requiresFullScreen=True --iOS.requiresPersistentWiFi=False --iOS.prerenderedIcon=True --iOS.overrideIPodMusic=False --iOS.showActivityIndicatorOnLoading=Gray --iOS.backgroundModes=None --iOS.targetResolution=ResolutionAutoPerformance --iOS.appInBackgroundBehavior=Suspend --iOS.scriptCallOptimization=FastButNoExceptions --iOS.statusBarStyle=BlackTranslucent --iOS.iPadLaunchScreenType=Default --iOS.iPhoneLaunchScreenType=Default --android.bundleVersionCode=1 --android.targetSdkVersion=28 --android.minSdkVersion=16 --android.targetDevice=FAT --android.keystoreName=Asset/keystore.keys --android.keystorePass=123456 --android.keyaliasName=MainApp --android.keyaliasPass=123456 --android.useAPKExpansionFiles=True --android.use24BitDepthBuffer=True --android.disableDepthAndStencilBuffers=False --android.androidIsGame=True --android.androidTVCompatibility=False --android.forceSDCardPermission=True --android.forceInternetPermission=False --android.maxAspectRatio=1.8 --android.preferredInstallLocation=Auto --android.showActivityIndicatorOnLoading=Large --android.splashScreenScale=ScaleToFit --android.blitType=Auto --stackTraceLogType:Exception=Full --stackTraceLogType:Assert=Full --stackTraceLogType:Error=Full --stackTraceLogType:Warning=ScriptOnly --stackTraceLogType:Log=None --aspectRatio:AspectOthers=False --aspectRatio:Aspect4by3=True --aspectRatio:Aspect5by4=True --aspectRatio:Aspect16by10=True --aspectRatio:Aspect16by9=True --graphicsAPIs:StandaloneWindows=UseDefault,Vulkan,Direct3D9,Direct3D11,Direct3D12 --graphicsAPIs:StandaloneWindows64=UseDefault,Vulkan,Direct3D9,Direct3D11,Direct3D12 --graphicsAPIs:iOS=Metal,DoNotUseDefault --graphicsAPIs:Android=UseDefault,OpenGLES3,Vulkan --iOS.launchScreenImage:iPhonePortraitImage=Assets/Splash/iPhonePort.png --iOS.launchScreenImage:iPhoneLandscapeImage=Assets/Splash/iPhoneLand.png --iOS.launchScreenImage:iPadImage=Assets/Splash/iPad.png --il2CppCompilerConfiguration:Standalone=Debug --il2CppCompilerConfiguration:iOS=Release --il2CppCompilerConfiguration:Android=Release --incrementalIl2CppBuild:Standalone=True --incrementalIl2CppBuild:iOS=False --incrementalIl2CppBuild:Android=False --scriptingBackend:Standalone=IL2CPP --scriptingBackend:iOS=IL2CPP --scriptingBackend:Android=Mono2x --scriptingDefineSymbolsForGroup:Standalone=CUSTOM_STANDALONE --scriptingDefineSymbolsForGroup:iOS=CUSTOM_IOS --scriptingDefineSymbolsForGroup:Android=CUSTOM_ANDROID --iconsForTargetGroup:Standalone=Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png --iconsForTargetGroup:iOS=Assets/Icons/iOS/Icon1.png,Assets/Icons/iOS/Icon2.png --iconsForTargetGroup:Android=Assets/Icons/Android/Icon.png".Split();
 
             var options = new Dictionary<string, string>();
 

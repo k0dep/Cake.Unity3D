@@ -7,38 +7,51 @@ using Cake.Unity3D.Helpers;
 
 namespace Cake.Unity3D
 {
+    // TODO : Allow PlayerSettings in Build Step
     public class Unity3DPlayerSettings
     {
-        Dictionary<string, object> values = new Dictionary<string, object>();
+        class Entry
+        {
+            // Store CallType otherwise enums with 0 value will be converted to null and on write out we lost the type information
+            public Type CallType;
+            public object Value;
+        }
+
+        Dictionary<string, Entry> values = new Dictionary<string, Entry>();
 
         public T GetValue<T>(string key)
         {
-            object value;
-            if(values.TryGetValue(key, out value))
+            Entry entry;
+            if(values.TryGetValue(key, out entry))
             {
-                return (T)value;
+                return (T)entry.Value;
             }
             return default(T);
         }
 
         public void SetValue<T>(string key, T value)
         {
-            if (values.ContainsKey(key))
+            Entry entry;
+            if (values.TryGetValue(key, out entry))
             {
-                values[key] = value.ToString();
+                entry.Value = value;
+                entry.CallType = typeof(T);
             }
             else
             {
-                values.Add(key, value.ToString());
+                values.Add(key, new Entry
+                {
+                    Value = value,
+                    CallType = typeof(T),
+                });
             }
         }
 
-        const string DumpPrefix = "--";
-        public void FillIntoArgs(Dictionary<string,string> args)
+        public void WriteArgs(Dictionary<string,string> args)
         {
-            foreach(KeyValuePair<string, object> setting in values)
+            foreach(KeyValuePair<string, Entry> setting in values)
             {
-                string argsKey = $"{DumpPrefix}{setting.Key}";
+                string argsKey = $"{setting.Key}";
                 args.Add(argsKey, EncodeValue(setting.Value));
             }
 
@@ -57,46 +70,56 @@ namespace Cake.Unity3D
         {
             if (dic != null)
             {
-                foreach (var keyValue in GraphicsAPIs)
+                foreach (var keyValue in dic)
                 {
-                    string argsKey = $"{DumpPrefix}{key}:{keyValue.Key}";
-                    args.Add(argsKey, EncodeValue(keyValue.Value));
+                    string argsKey = $"{key}:{keyValue.Key}";
+                    args.Add(argsKey, EncodeValue(typeof(V), keyValue.Value));
                 }
             }
         }
 
-        string EncodeValue(object value)
+        string EncodeValue(Entry entry)
         {
-            Type t = value.GetType();
-            if (t.IsArray)
+            return EncodeValue(entry.CallType, entry.Value);
+        }
+
+        string EncodeValue(Type t, object value)
+        {
+            if (t == typeof(PlayerSplashScreenLogo))
             {
-                object[] array = (object[])value;
+                PlayerSplashScreenLogo logo = (PlayerSplashScreenLogo)value;
+                return String.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}:{1}", logo.Logo, logo.Duration);
+            }
+            else if (t.IsArray)
+            {
+                Array array = (Array)value;
                 string[] values = new string[array.Length];
                 for (int i = 0; i < array.Length; i++)
                 {
-                    values[i] = EncodeValue(array[i]);
+                    values[i] = EncodeValue(t.GetElementType(), array.GetValue(i));
                 }
                 return string.Join(",", values);
             }
             else if (t.IsEnum)
             {
                 Enum enumValue = (Enum)value;
-                if(enumValue.HasFlag(enumValue))
+                if(enumValue.HasFlag(enumValue) && Attribute.IsDefined(t, typeof(System.FlagsAttribute)))
                 {
-                    return string.Join(",", enumValue.GetIndividualFlags());
+                    string enumString = string.Join(",", enumValue.GetIndividualFlags());
+                    // Only return a valid written enum. Otherwise fall back to returning on the normal path
+                    if(!string.IsNullOrEmpty(enumString))
+                    {
+                        return enumString;
+                    }
                 }
+                return value.ToString();
             }
-            else if(t == typeof(PlayerSplashScreenLogo))
-            {
-                PlayerSplashScreenLogo logo = (PlayerSplashScreenLogo)value;
-                return $"{logo.logo}:{logo.duration}";
-            }
-            return value.ToString();
+            return String.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}", value);
         }
 
         public void DumpOptions()
         {
-            foreach (KeyValuePair<string, object> setting in values)
+            foreach (KeyValuePair<string, Entry> setting in values)
             {
                 Console.WriteLine($"{setting.Key}: {EncodeValue(setting.Value)}");
             }
@@ -119,7 +142,7 @@ namespace Cake.Unity3D
                 Console.WriteLine($"{Title}->");
                 foreach (var keyValue in dic)
                 {
-                    Console.WriteLine($"\t{keyValue.Key}: {EncodeValue(keyValue.Value)}");
+                    Console.WriteLine($"\t{keyValue.Key}: {EncodeValue(typeof(V), keyValue.Value)}");
                 }
             }
         }
@@ -130,19 +153,14 @@ namespace Cake.Unity3D
         public string ApplicationIdentifier { get { return GetValue<string>("applicationIdentifier"); } set { SetValue("applicationIdentifier", value); } }
         public string BundleVersion { get { return GetValue<string>("bundleVersion"); } set { SetValue("bundleVersion", value); } }
 
-        // Unity Services Settings
-        public string CloudProjectId { get { return GetValue<string>("cloudProjectId"); } set { SetValue("cloudProjectId", value); } }
-        public Guid ProductGUID { get { return GetValue<Guid>("productGUID"); } set { SetValue("productGUID", value); } }
-
         // DotNet / Code / Script Settings
         public PlayerApiCompatibilityLevel ApiCompatibilityLevel { get { return GetValue<PlayerApiCompatibilityLevel>("apiCompatibilityLevel"); } set { SetValue("apiCompatibilityLevel", value); } }
-        public bool ActionOnDotNetUnhandledException { get { return GetValue<bool>("actionOnDotNetUnhandledException"); } set { SetValue("actionOnDotNetUnhandledException", value); } }
+        public PlayerActionOnDotNetUnhandledException ActionOnDotNetUnhandledException { get { return GetValue<PlayerActionOnDotNetUnhandledException>("actionOnDotNetUnhandledException"); } set { SetValue("actionOnDotNetUnhandledException", value); } }
         public bool LogObjCUncaughtExceptions { get { return GetValue<bool>("logObjCUncaughtExceptions"); } set { SetValue("logObjCUncaughtExceptions", value); } }
         public bool EnableCrashReportAPI { get { return GetValue<bool>("enableCrashReportAPI"); } set { SetValue("enableCrashReportAPI", value); } }
         public PlayerStrippingLevel StrippingLevel { get { return GetValue<PlayerStrippingLevel>("strippingLevel"); } set { SetValue("strippingLevel", value); } }
         public bool StripEngineCode { get { return GetValue<bool>("stripEngineCode"); } set { SetValue("stripEngineCode", value); } }
         public bool UsePlayerLog { get { return GetValue<bool>("usePlayerLog"); } set { SetValue("usePlayerLog", value); } }
-        public string AdditionalIl2CppArgs { get { return GetValue<string>("additionalIl2CppArgs"); } set { SetValue("additionalIl2CppArgs", value); } }
         public IEnumerable<KeyValuePair<PlayerLogType, PlayerStackTraceLogType>> StackTraceLogType { get; set; }
         public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, PlayerIl2CppCompilerConfiguration>> Il2CppCompilerConfiguration { get; set; }
         public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, bool>> IncrementalIl2CppBuild { get; set; }
@@ -164,24 +182,24 @@ namespace Cake.Unity3D
         // Spalsh / Startup Settings
         public string[] PreloadedAssets { get { return GetValue<string[]>("preloadedAssets"); } set { SetValue("preloadedAssets", value); } }
 
-        public bool DisplayResolutionDialog { get { return GetValue<bool>("displayResolutionDialog"); } set { SetValue("displayResolutionDialog", value); } }
+        public PlayerResolutionDialogSetting DisplayResolutionDialog { get { return GetValue<PlayerResolutionDialogSetting>("displayResolutionDialog"); } set { SetValue("displayResolutionDialog", value); } }
         public string VirtualRealitySplashScreen { get { return GetValue<string>("virtualRealitySplashScreen"); } set { SetValue("virtualRealitySplashScreen", value); } }
         public bool ShowUnitySplashScreen { get { return GetValue<bool>("showUnitySplashScreen"); } set { SetValue("showUnitySplashScreen", value); } }
         public PlayerSplashScreenStyle SplashScreenStyle { get { return GetValue<PlayerSplashScreenStyle>("splashScreenStyle"); } set { SetValue("splashScreenStyle", value); } }
-        public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, string>> IconsForTargetGroup { get; set; }
+        public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, string[]>> IconsForTargetGroup { get; set; }
 
-        public SplashAnimationMode AnimationMode { get { return GetValue<SplashAnimationMode>("splashScreen.animationMode"); } set { SetValue("splashScreen.animationMode", value); } }
-        public float AnimationBackgroundZoom { get { return GetValue<float>("splashScreen.animationBackgroundZoom"); } set { SetValue("splashScreen.animationBackgroundZoom", value); } }
-        public float AnimationLogoZoom { get { return GetValue<float>("splashScreen.animationLogoZoom"); } set { SetValue("splashScreen.animationLogoZoom", value); } }
-        public string Background { get { return GetValue<string>("splashScreen.background"); } set { SetValue("splashScreen.background", value); } }
-        public string BackgroundPortrait { get { return GetValue<string>("splashScreen.backgroundPortrait"); } set { SetValue("splashScreen.backgroundPortrait", value); } }
-        public string BackgroundColor { get { return GetValue<string>("splashScreen.backgroundColor"); } set { SetValue("splashScreen.backgroundColor", value); } }
-        public SplashDrawMode DrawMode { get { return GetValue<SplashDrawMode>("splashScreen.drawMode"); } set { SetValue("splashScreen.drawMode", value); } }
-        public PlayerSplashScreenLogo[] Logos { get { return GetValue<PlayerSplashScreenLogo[]>("splashScreen.logos"); } set { SetValue("splashScreen.logos", value); } }
-        public float OverlayOpacity { get { return GetValue<float>("splashScreen.overlayOpacity"); } set { SetValue("splashScreen.overlayOpacity", value); } }
-        public bool Show { get { return GetValue<bool>("splashScreen.show"); } set { SetValue("splashScreen.show", value); } }
-        public bool ShowUnityLogo { get { return GetValue<bool>("splashScreen.showUnityLogo"); } set { SetValue("splashScreen.showUnityLogo", value); } }
-        public SplashUnityLogoStyle UnityLogoStyle { get { return GetValue<SplashUnityLogoStyle>("splashScreen.unityLogoStyle"); } set { SetValue("splashScreen.unityLogoStyle", value); } }
+        public SplashAnimationMode SplashScreenAnimationMode { get { return GetValue<SplashAnimationMode>("splashScreen.animationMode"); } set { SetValue("splashScreen.animationMode", value); } }
+        public float SplashScreenAnimationBackgroundZoom { get { return GetValue<float>("splashScreen.animationBackgroundZoom"); } set { SetValue("splashScreen.animationBackgroundZoom", value); } }
+        public float SplashScreenAnimationLogoZoom { get { return GetValue<float>("splashScreen.animationLogoZoom"); } set { SetValue("splashScreen.animationLogoZoom", value); } }
+        public string SplashScreenBackground { get { return GetValue<string>("splashScreen.background"); } set { SetValue("splashScreen.background", value); } }
+        public string SplashScreenBackgroundPortrait { get { return GetValue<string>("splashScreen.backgroundPortrait"); } set { SetValue("splashScreen.backgroundPortrait", value); } }
+        public string SplashScreenBackgroundColor { get { return GetValue<string>("splashScreen.backgroundColor"); } set { SetValue("splashScreen.backgroundColor", value); } }
+        public SplashDrawMode SplashScreenDrawMode { get { return GetValue<SplashDrawMode>("splashScreen.drawMode"); } set { SetValue("splashScreen.drawMode", value); } }
+        public PlayerSplashScreenLogo[] SplashScreenLogos { get { return GetValue<PlayerSplashScreenLogo[]>("splashScreen.logos"); } set { SetValue("splashScreen.logos", value); } }
+        public float SplashScreenOverlayOpacity { get { return GetValue<float>("splashScreen.overlayOpacity"); } set { SetValue("splashScreen.overlayOpacity", value); } }
+        public bool SplashScreenShow { get { return GetValue<bool>("splashScreen.show"); } set { SetValue("splashScreen.show", value); } }
+        public bool SplashScreenShowUnityLogo { get { return GetValue<bool>("splashScreen.showUnityLogo"); } set { SetValue("splashScreen.showUnityLogo", value); } }
+        public SplashUnityLogoStyle SplashScreenUnityLogoStyle { get { return GetValue<SplashUnityLogoStyle>("splashScreen.unityLogoStyle"); } set { SetValue("splashScreen.unityLogoStyle", value); } }
 
         // Graphics
         public bool Use32BitDisplayBuffer { get { return GetValue<bool>("use32BitDisplayBuffer"); } set { SetValue("use32BitDisplayBuffer", value); } }
@@ -193,7 +211,7 @@ namespace Cake.Unity3D
         public bool BakeCollisionMeshes { get { return GetValue<bool>("bakeCollisionMeshes"); } set { SetValue("bakeCollisionMeshes", value); } }
 
         // Mobile
-        public UIOrientation DefaultInterfaceOrientation { get { return GetValue<UIOrientation>("defaultInterfaceOrientation"); } set { SetValue("defaultInterfaceOrientation", value); } }
+        public PlayerUIOrientation DefaultInterfaceOrientation { get { return GetValue<PlayerUIOrientation>("defaultInterfaceOrientation"); } set { SetValue("defaultInterfaceOrientation", value); } }
         public bool AllowedAutorotateToPortrait { get { return GetValue<bool>("allowedAutorotateToPortrait"); } set { SetValue("allowedAutorotateToPortrait", value); } }
         public bool AllowedAutorotateToPortraitUpsideDown { get { return GetValue<bool>("allowedAutorotateToPortraitUpsideDown"); } set { SetValue("allowedAutorotateToPortraitUpsideDown", value); } }
         public bool AllowedAutorotateToLandscapeRight { get { return GetValue<bool>("allowedAutorotateToLandscapeRight"); } set { SetValue("allowedAutorotateToLandscapeRight", value); } }
@@ -204,7 +222,7 @@ namespace Cake.Unity3D
         // macOS
         public bool UseMacAppStoreValidation { get { return GetValue<bool>("useMacAppStoreValidation"); } set { SetValue("useMacAppStoreValidation", value); } }
         public bool MacRetinaSupport { get { return GetValue<bool>("macRetinaSupport"); } set { SetValue("macRetinaSupport", value); } }
-        public bool MacOSBuildNumber { get { return GetValue<bool>("mac.OSBuildNumber"); } set { SetValue("mac.OSBuildNumber", value); } }
+        public string MacOSBuildNumber { get { return GetValue<string>("macos.buildNumber"); } set { SetValue("macos.buildNumber", value); } }
 
         // iOS
         public string iOSApplicationDisplayName { get { return GetValue<string>("iOS.applicationDisplayName"); } set { SetValue("iOS.applicationDisplayName", value); } }
@@ -215,7 +233,7 @@ namespace Cake.Unity3D
         public string iOSAppleDeveloperTeamID { get { return GetValue<string>("iOS.appleDeveloperTeamID"); } set { SetValue("iOS.appleDeveloperTeamID", value); } }
 
         public string iOSTvOSManualProvisioningProfileID { get { return GetValue<string>("iOS.tvOSManualProvisioningProfileID"); } set { SetValue("iOS.tvOSManualProvisioningProfileID", value); } }
-        public string iOSManualProvisioningProfileID { get { return GetValue<string>("iOS.manualProvisioningProfileID"); } set { SetValue("iOS.manualProvisioningProfileID", value); } }
+        public string iOSManualProvisioningProfileID { get { return GetValue<string>("iOS.iOSManualProvisioningProfileID"); } set { SetValue("iOS.iOSManualProvisioningProfileID", value); } }
 
         public string iOSMicrophoneUsageDescription { get { return GetValue<string>("iOS.microphoneUsageDescription"); } set { SetValue("iOS.microphoneUsageDescription", value); } }
         public string iOSLocationUsageDescription { get { return GetValue<string>("iOS.locationUsageDescription"); } set { SetValue("iOS.locationUsageDescription", value); } }
@@ -229,7 +247,7 @@ namespace Cake.Unity3D
         public bool iOSRequiresFullScreen { get { return GetValue<bool>("iOS.requiresFullScreen"); } set { SetValue("iOS.requiresFullScreen", value); } }
         public bool iOSRequiresPersistentWiFi { get { return GetValue<bool>("iOS.requiresPersistentWiFi"); } set { SetValue("iOS.requiresPersistentWiFi", value); } }
         public bool iOSPrerenderedIcon { get { return GetValue<bool>("iOS.prerenderedIcon"); } set { SetValue("iOS.prerenderedIcon", value); } }
-        public bool iOSOverrideIPodMusic { get { return GetValue<bool>("iOS.OverrideIPodMusic"); } set { SetValue("iOS.OverrideIPodMusic", value); } }
+        public bool iOSOverrideIPodMusic { get { return GetValue<bool>("iOS.overrideIPodMusic"); } set { SetValue("iOS.overrideIPodMusic", value); } }
 
         public PlayeriOSShowActivityIndicatorOnLoading iOSShowActivityIndicatorOnLoading { get { return GetValue<PlayeriOSShowActivityIndicatorOnLoading>("iOS.showActivityIndicatorOnLoading"); } set { SetValue("iOS.showActivityIndicatorOnLoading", value); } }
         public PlayeriOSBackgroundMode iOSBackgroundModes { get { return GetValue<PlayeriOSBackgroundMode>("iOS.backgroundModes"); } set { SetValue("iOS.backgroundModes", value); } }
@@ -254,7 +272,6 @@ namespace Cake.Unity3D
         public string AndroidKeyaliasPass { get { return GetValue<string>("android.keyaliasPass"); } set { SetValue("android.keyaliasPass", value); } }
 
         public bool AndroidUseAPKExpansionFiles { get { return GetValue<bool>("android.useAPKExpansionFiles"); } set { SetValue("android.useAPKExpansionFiles", value); } }
-        public bool AndroidLicenseVerification { get { return GetValue<bool>("android.licenseVerification"); } set { SetValue("android.licenseVerification", value); } }
         public bool AndroidUse24BitDepthBuffer { get { return GetValue<bool>("android.use24BitDepthBuffer"); } set { SetValue("android.use24BitDepthBuffer", value); } }
         public bool AndroidDisableDepthAndStencilBuffers { get { return GetValue<bool>("android.disableDepthAndStencilBuffers"); } set { SetValue("android.disableDepthAndStencilBuffers", value); } }
         public bool AndroidIsGame { get { return GetValue<bool>("android.androidIsGame"); } set { SetValue("android.androidIsGame", value); } }
@@ -272,8 +289,8 @@ namespace Cake.Unity3D
 
     public struct PlayerSplashScreenLogo
     {
-        public string logo { get; set; }
-        public float duration { get; set; }
+        public string Logo { get; set; }
+        public float Duration { get; set; }
     }
 
     public enum PlayerApiCompatibilityLevel
@@ -285,12 +302,25 @@ namespace Cake.Unity3D
         NET_Micro
     }
 
+    public enum PlayerActionOnDotNetUnhandledException
+    {
+        SilentExit,
+        Crash
+    }
+
     public enum PlayerStrippingLevel
     {
         Disabled,
         StripAssemblies,
         StripByteCode,
         UseMicroMSCorlib
+    }
+
+    public enum PlayerResolutionDialogSetting
+    {
+        Disabled,
+        Enabled,
+        HiddenByDefault
     }
 
     public enum PlayerSplashScreenStyle
@@ -306,7 +336,7 @@ namespace Cake.Unity3D
         Linear
     }
 
-    public enum UIOrientation
+    public enum PlayerUIOrientation
     {
         Portrait,
         PortraitUpsideDown,
@@ -437,9 +467,9 @@ namespace Cake.Unity3D
 
     public enum PlayerStackTraceLogType
     {
-        None = 0,
-        ScriptOnly = 1,
-        Full = 2
+        None,
+        ScriptOnly,
+        Full
     }
 
     [System.Flags]

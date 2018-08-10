@@ -26,7 +26,7 @@ namespace Cake.Unity3D
             base.Build();
 
             Dictionary<string, string> args = new Dictionary<string, string>();
-            m_buildOptions.FillIntoArgs(args);
+            m_buildOptions.WriteArgs(args);
 
             RunUnityCommand("Cake.Unity3D.AutomatedBuild.SetPlayerSettings", args);
         }
