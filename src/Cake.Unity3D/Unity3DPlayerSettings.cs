@@ -7,8 +7,6 @@ using Cake.Unity3D.Helpers;
 
 namespace Cake.Unity3D
 {
-    // TODO : Handle Splash Image
-    // TODO : Handle Icons
     public class Unity3DPlayerSettings
     {
         Dictionary<string, object> values = new Dictionary<string, object>();
@@ -44,18 +42,24 @@ namespace Cake.Unity3D
                 args.Add(argsKey, EncodeValue(setting.Value));
             }
 
-            FillIntoArgs(StackTraceLogType, args);
-            FillIntoArgs(AspectRatio, args);
-            FillIntoArgs(GraphicsAPIs, args);
+            FillIntoArgs(StackTraceLogType, args, "stackTraceLogType");
+            FillIntoArgs(AspectRatio, args, "aspectRatio");
+            FillIntoArgs(GraphicsAPIs, args, "graphicsAPIs");
+            FillIntoArgs(LaunchScreenImage, args, "iOS.launchScreenImage");
+            FillIntoArgs(Il2CppCompilerConfiguration, args, "il2CppCompilerConfiguration");
+            FillIntoArgs(IncrementalIl2CppBuild, args, "incrementalIl2CppBuild");
+            FillIntoArgs(ScriptingBackend, args, "scriptingBackend");
+            FillIntoArgs(ScriptingDefineSymbolsForGroup, args, "scriptingDefineSymbolsForGroup");
+            FillIntoArgs(IconsForTargetGroup, args, "iconsForTargetGroup");
         }
 
-        void FillIntoArgs<K,V>(IEnumerable<KeyValuePair<K,V>> dic, Dictionary<string, string> args)
+        void FillIntoArgs<K,V>(IEnumerable<KeyValuePair<K,V>> dic, Dictionary<string, string> args, string key)
         {
             if (dic != null)
             {
                 foreach (var keyValue in GraphicsAPIs)
                 {
-                    string argsKey = $"{DumpPrefix}GraphicsAPIs:{keyValue.Key}";
+                    string argsKey = $"{DumpPrefix}{key}:{keyValue.Key}";
                     args.Add(argsKey, EncodeValue(keyValue.Value));
                 }
             }
@@ -64,13 +68,28 @@ namespace Cake.Unity3D
         string EncodeValue(object value)
         {
             Type t = value.GetType();
-            if(t.IsEnum)
+            if (t.IsArray)
+            {
+                object[] array = (object[])value;
+                string[] values = new string[array.Length];
+                for (int i = 0; i < array.Length; i++)
+                {
+                    values[i] = EncodeValue(array[i]);
+                }
+                return string.Join(",", values);
+            }
+            else if (t.IsEnum)
             {
                 Enum enumValue = (Enum)value;
                 if(enumValue.HasFlag(enumValue))
                 {
                     return string.Join(",", enumValue.GetIndividualFlags());
                 }
+            }
+            else if(t == typeof(PlayerSplashScreenLogo))
+            {
+                PlayerSplashScreenLogo logo = (PlayerSplashScreenLogo)value;
+                return $"{logo.logo}:{logo.duration}";
             }
             return value.ToString();
         }
@@ -85,6 +104,12 @@ namespace Cake.Unity3D
             DumpOptions(StackTraceLogType, "StackTraceLogType");
             DumpOptions(AspectRatio, "AspectRatio");
             DumpOptions(GraphicsAPIs, "GraphicsAPIs");
+            DumpOptions(LaunchScreenImage, "iOSLaunchScreenImage");
+            DumpOptions(Il2CppCompilerConfiguration, "Il2CppCompilerConfiguration");
+            DumpOptions(IncrementalIl2CppBuild, "IncrementalIl2CppBuild");
+            DumpOptions(ScriptingBackend, "ScriptingBackend");
+            DumpOptions(ScriptingDefineSymbolsForGroup, "ScriptingDefineSymbolsForGroup");
+            DumpOptions(IconsForTargetGroup, "IconsForTargetGroup");
         }
 
         void DumpOptions<K, V>(IEnumerable<KeyValuePair<K, V>> dic, string Title)
@@ -119,6 +144,10 @@ namespace Cake.Unity3D
         public bool UsePlayerLog { get { return GetValue<bool>("usePlayerLog"); } set { SetValue("usePlayerLog", value); } }
         public string AdditionalIl2CppArgs { get { return GetValue<string>("additionalIl2CppArgs"); } set { SetValue("additionalIl2CppArgs", value); } }
         public IEnumerable<KeyValuePair<PlayerLogType, PlayerStackTraceLogType>> StackTraceLogType { get; set; }
+        public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, PlayerIl2CppCompilerConfiguration>> Il2CppCompilerConfiguration { get; set; }
+        public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, bool>> IncrementalIl2CppBuild { get; set; }
+        public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, PlayerScriptingImplementation>> ScriptingBackend { get; set; }
+        public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, string>> ScriptingDefineSymbolsForGroup { get; set; }
 
         // Window Settings
         public bool ResizableWindow { get { return GetValue<bool>("resizableWindow"); } set { SetValue("resizableWindow", value); } }
@@ -133,10 +162,26 @@ namespace Cake.Unity3D
         public IEnumerable<KeyValuePair<PlayerAspectRatio, bool>> AspectRatio { get; set; }
 
         // Spalsh / Startup Settings
+        public string[] PreloadedAssets { get { return GetValue<string[]>("preloadedAssets"); } set { SetValue("preloadedAssets", value); } }
+
         public bool DisplayResolutionDialog { get { return GetValue<bool>("displayResolutionDialog"); } set { SetValue("displayResolutionDialog", value); } }
         public string VirtualRealitySplashScreen { get { return GetValue<string>("virtualRealitySplashScreen"); } set { SetValue("virtualRealitySplashScreen", value); } }
         public bool ShowUnitySplashScreen { get { return GetValue<bool>("showUnitySplashScreen"); } set { SetValue("showUnitySplashScreen", value); } }
         public PlayerSplashScreenStyle SplashScreenStyle { get { return GetValue<PlayerSplashScreenStyle>("splashScreenStyle"); } set { SetValue("splashScreenStyle", value); } }
+        public IEnumerable<KeyValuePair<PlayerBuildTargetGroup, string>> IconsForTargetGroup { get; set; }
+
+        public SplashAnimationMode AnimationMode { get { return GetValue<SplashAnimationMode>("splashScreen.animationMode"); } set { SetValue("splashScreen.animationMode", value); } }
+        public float AnimationBackgroundZoom { get { return GetValue<float>("splashScreen.animationBackgroundZoom"); } set { SetValue("splashScreen.animationBackgroundZoom", value); } }
+        public float AnimationLogoZoom { get { return GetValue<float>("splashScreen.animationLogoZoom"); } set { SetValue("splashScreen.animationLogoZoom", value); } }
+        public string Background { get { return GetValue<string>("splashScreen.background"); } set { SetValue("splashScreen.background", value); } }
+        public string BackgroundPortrait { get { return GetValue<string>("splashScreen.backgroundPortrait"); } set { SetValue("splashScreen.backgroundPortrait", value); } }
+        public string BackgroundColor { get { return GetValue<string>("splashScreen.backgroundColor"); } set { SetValue("splashScreen.backgroundColor", value); } }
+        public SplashDrawMode DrawMode { get { return GetValue<SplashDrawMode>("splashScreen.drawMode"); } set { SetValue("splashScreen.drawMode", value); } }
+        public PlayerSplashScreenLogo[] Logos { get { return GetValue<PlayerSplashScreenLogo[]>("splashScreen.logos"); } set { SetValue("splashScreen.logos", value); } }
+        public float OverlayOpacity { get { return GetValue<float>("splashScreen.overlayOpacity"); } set { SetValue("splashScreen.overlayOpacity", value); } }
+        public bool Show { get { return GetValue<bool>("splashScreen.show"); } set { SetValue("splashScreen.show", value); } }
+        public bool ShowUnityLogo { get { return GetValue<bool>("splashScreen.showUnityLogo"); } set { SetValue("splashScreen.showUnityLogo", value); } }
+        public SplashUnityLogoStyle UnityLogoStyle { get { return GetValue<SplashUnityLogoStyle>("splashScreen.unityLogoStyle"); } set { SetValue("splashScreen.unityLogoStyle", value); } }
 
         // Graphics
         public bool Use32BitDisplayBuffer { get { return GetValue<bool>("use32BitDisplayBuffer"); } set { SetValue("use32BitDisplayBuffer", value); } }
@@ -195,8 +240,7 @@ namespace Cake.Unity3D
 
         public PlayeriOSLaunchScreenType iOSiPadLaunchScreenType { get { return GetValue<PlayeriOSLaunchScreenType>("iOS.iPadLaunchScreenType"); } set { SetValue("iOS.iPadLaunchScreenType", value); } }
         public PlayeriOSLaunchScreenType iOSiPhoneLaunchScreenType { get { return GetValue<PlayeriOSLaunchScreenType>("iOS.iPhoneLaunchScreenType"); } set { SetValue("iOS.iPhoneLaunchScreenType", value); } }
-        // TODO 
-        //public static void SetLaunchScreenImage(Texture2D image, iOSLaunchScreenImageType type);
+        public IEnumerable<KeyValuePair<PlayeriOSLaunchScreenImageType, string>> LaunchScreenImage { get; set; }
 
         // Android
         public int AndroidBundleVersionCode { get { return GetValue<int>("android.bundleVersionCode"); } set { SetValue("android.bundleVersionCode", value); } }
@@ -224,6 +268,12 @@ namespace Cake.Unity3D
         public PlayerAndroidShowActivityIndicatorOnLoading AndroidShowActivityIndicatorOnLoading { get { return GetValue<PlayerAndroidShowActivityIndicatorOnLoading>("android.showActivityIndicatorOnLoading"); } set { SetValue("android.showActivityIndicatorOnLoading", value); } }
         public PlayerAndroidSplashScreenScale AndroidSplashScreenScale { get { return GetValue<PlayerAndroidSplashScreenScale>("android.splashScreenScale"); } set { SetValue("android.splashScreenScale", value); } }
         public PlayerAndroidBlitType AndroidBlitType { get { return GetValue<PlayerAndroidBlitType>("android.blitType"); } set { SetValue("android.blitType", value); } }
+    }
+
+    public struct PlayerSplashScreenLogo
+    {
+        public string logo { get; set; }
+        public float duration { get; set; }
     }
 
     public enum PlayerApiCompatibilityLevel
@@ -339,6 +389,13 @@ namespace Cake.Unity3D
         CustomXib,
         None,
         ImageAndBackgroundConstant
+    }
+
+    public enum PlayeriOSLaunchScreenImageType
+    {
+        iPhonePortraitImage,
+        iPhoneLandscapeImage,
+        iPadImage
     }
 
     public enum PlayerAndroidTargetDevice
@@ -464,5 +521,65 @@ namespace Cake.Unity3D
         Aspect5by4,
         Aspect16by10,
         Aspect16by9
+    }
+
+    public enum SplashAnimationMode
+    {
+        Static,
+        Dolly,
+        Custom
+    }
+
+    public enum SplashDrawMode
+    {
+        UnityLogoBelow,
+        AllSequential
+    }
+
+    public enum SplashUnityLogoStyle
+    {
+        DarkOnLight,
+        LightOnDark
+    }
+
+    public enum PlayerBuildTargetGroup
+    {
+        Unknown,
+        Standalone,
+        WebPlayer,
+        iPhone,
+        iOS,
+        PS3,
+        XBOX360,
+        Android,
+        WebGL,
+        WSA,
+        Metro,
+        WP8,
+        BlackBerry,
+        Tizen,
+        PSP2,
+        PS4,
+        PSM,
+        XboxOne,
+        SamsungTV,
+        N3DS,
+        WiiU,
+        tvOS,
+        Facebook,
+        Switch
+    }
+
+    public enum PlayerIl2CppCompilerConfiguration
+    {
+        Debug,
+        Release
+    }
+
+    public enum PlayerScriptingImplementation
+    {
+        Mono2x,
+        IL2CPP,
+        WinRTDotNET
     }
 }

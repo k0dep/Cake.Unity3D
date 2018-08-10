@@ -190,7 +190,7 @@ namespace Cake.Unity3D
                         Debug.Log($"[Cake.Unity3D]\t{key}({aspectRatio}) => {value}");
                     }, option, value);
                     return true;
-                case "":
+                case "graphicsAPIs":
                     IfHasValue<BuildTarget, string[]>((buildTarget, graphicsAPIs) => {
                         foreach(string graphicsAPI in graphicsAPIs)
                         {
@@ -212,7 +212,60 @@ namespace Cake.Unity3D
                                 }, graphicsAPI);
                             }
                         }
-                        Debug.Log($"[Cake.Unity3D]\t{key}({aspectRatio}) => {value}");
+                    }, option, value);
+                    break;
+                case "il2CppCompilerConfiguration":
+                    IfHasValue<BuildTargetGroup, Il2CppCompilerConfiguration>((targetGroup, configuration) => {
+                        PlayerSettings.SetIl2CppCompilerConfiguration(targetGroup, configuration);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
+                    }, option, value);
+                    break;
+                case "incrementalIl2CppBuild":
+                    IfHasValue<BuildTargetGroup, bool>((targetGroup, configuration) => {
+                        PlayerSettings.SetIncrementalIl2CppBuild(targetGroup, configuration);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
+                    }, option, value);
+                    break;
+                case "scriptingBackend":
+                    IfHasValue<BuildTargetGroup, ScriptingImplementation>((targetGroup, configuration) => {
+                        PlayerSettings.SetScriptingBackend(targetGroup, configuration);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
+                    }, option, value);
+                    break;
+                case "scriptingDefineSymbolsForGroup":
+                    IfHasValue<BuildTargetGroup, string>((targetGroup, configuration) => {
+                        PlayerSettings.SetScriptingDefineSymbolsForGroup(targetGroup, configuration);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
+                    }, option, value);
+                    break;
+                case "preloadedAssets":
+                    IfHasValue<UnityEngine.Object[]>((objects) => {
+                        PlayerSettings.SetPreloadedAssets(objects);
+                        Debug.Log($"[Cake.Unity3D]\t{key} => {value}");
+                    }, value);
+                    break;
+                case "iconsForTargetGroup":
+                    IfHasValue<BuildTargetGroup, Texture2D[]>((targetGroup, icons) => {
+                        PlayerSettings.SetIconsForTargetGroup(targetGroup, icons);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({targetGroup}) => {value}");
+                    }, option, value);
+                    break;
+                case "iOS.iPadLaunchScreenType":
+                    IfHasValue<iOSLaunchScreenType>((type) => {
+                        PlayerSettings.iOS.SetiPadLaunchScreenType(type);
+                        Debug.Log($"[Cake.Unity3D]\t{key} => {value}");
+                    }, value);
+                    break;
+                case "iOS.iPhoneLaunchScreenType":
+                    IfHasValue<iOSLaunchScreenType>((type) => {
+                        PlayerSettings.iOS.SetiPhoneLaunchScreenType(type);
+                        Debug.Log($"[Cake.Unity3D]\t{key} => {value}");
+                    }, value);
+                    break;
+                case "iOS.launchScreenImage":
+                    IfHasValue<iOSLaunchScreenImageType, Texture2D>((type, texture) => {
+                        PlayerSettings.iOS.SetLaunchScreenImage(texture, type);
+                        Debug.Log($"[Cake.Unity3D]\t{key}({type}) => {value}");
                     }, option, value);
                     break;
             }
@@ -439,10 +492,56 @@ namespace Cake.Unity3D
 
                 }
             }
+            else if (type == typeof(Color))
+            {
+                Color color;
+                if(ColorUtility.TryParseHtmlString(input, out color))
+                {
+                    value = color;
+                    return true;
+                }
+            }
             else if (type == typeof(Texture2D))
             {
                 object obj = AssetDatabase.LoadAssetAtPath(input, typeof(Texture2D));
                 if(obj != null && obj is Texture2D)
+                {
+                    value = obj;
+                    return true;
+                }
+            }
+            else if (type == typeof(Sprite))
+            {
+                // TODO path to sprite ???
+                object obj = AssetDatabase.LoadAssetAtPath(input, typeof(Sprite));
+                if (obj != null && obj is Sprite)
+                {
+                    value = obj;
+                    return true;
+                }
+            }
+            else if(type == typeof(PlayerSettings.SplashScreenLogo))
+            {
+                string logoString = input;
+                Sprite logo;
+                string durationString;
+                float duration;
+                if(TryGetSpecialOption(ref logoString, out durationString) && 
+                    TryGetValue<Sprite>(logoString, out logo) && 
+                    float.TryParse(durationString, out duration))
+                {
+                    value = new PlayerSettings.SplashScreenLogo()
+                    {
+                        logo = logo,
+                        duration = duration,
+                    };
+                    return true;
+                }
+            }
+            else if(type == typeof(UnityEngine.Object))
+            {
+                object obj = AssetDatabase.LoadAssetAtPath(input, typeof(UnityEngine.Object));
+                if(obj != null)
                 {
                     value = obj;
                     return true;
