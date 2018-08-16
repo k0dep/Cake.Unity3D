@@ -43,7 +43,7 @@ namespace Cake.Unity3D.Helpers
                                                               // the offset is from the beginning of the file info struct (fileInfoStartsAt)
                     fileStream.Seek((fileInfoStartsAt + fileOffset), SeekOrigin.Begin); // Seek to beginning of
                                                                                         // base pathname (target)
-                    var pathLength = (totalStructLength + fileInfoStartsAt) - fileStream.Position - 2; // read
+                    var pathLength = (totalStructLength + fileInfoStartsAt) - fileStream.Position - 1; // read
                                                                                                        // the base pathname. I don't need the 2 terminating nulls.
                     var linkTarget = fileReader.ReadChars((int)pathLength); // should be unicode safe
                     var link = new string(linkTarget);
