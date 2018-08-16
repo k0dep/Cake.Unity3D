@@ -3,6 +3,8 @@ using Cake.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Xml.Linq;
 
 namespace Cake.Unity3D.Helpers
 {
@@ -13,10 +15,26 @@ namespace Cake.Unity3D.Helpers
     {
         /// <summary>
         /// Locate all installed version of Unity3D.
-        /// Warning: This currently only works for Windows and has only been tested on Windows 10.
         /// </summary>
         /// <returns></returns>
         public static Dictionary<string, string> LocateUnityInstalls()
+        {
+            if(Environment.OSVersion.Platform == PlatformID.MacOSX ||
+                Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                return LocateUnityInstallsMacOS();
+            }
+            else
+            {
+                return LocateUnityInstallsWindows();
+            }
+        }
+
+        /// <summary>
+        /// Locate all installed version of Unity3D on Windows.
+        /// </summary>
+        /// <returns></returns>
+        public static Dictionary<string, string> LocateUnityInstallsWindows()
         {
             var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
             if (!System.IO.Directory.Exists(programData))
@@ -39,9 +57,106 @@ namespace Cake.Unity3D.Helpers
                     continue;
                 }
 
-                installs.Add(new System.IO.DirectoryInfo(unityFolder).Name, WindowsShortcut.GetShortcutTarget(unityShortcut));
+                string exePath = WindowsShortcut.GetShortcutTarget(unityShortcut);
+                string version = "";
+                if(!TryGetUnityVersion(exePath, "Data", out version))
+                {
+                    var fileInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(exePath);
+                    version = fileInfo.ProductVersion;
+                }
+
+                if (!installs.ContainsKey(version))
+                {
+                    installs.Add(version, exePath);
+                }
             }
             return installs;
+        }
+        /// <summary>
+        /// Locate all installed version of Unity3D on macOS.
+        /// </summary>
+        /// <returns></returns>
+        public static Dictionary<string, string> LocateUnityInstallsMacOS()
+        {
+            var installs = new Dictionary<string, string>();
+            
+            var find = new System.Diagnostics.Process();
+            find.StartInfo.FileName = "find";
+            find.StartInfo.Arguments = "/Applications/ -name Unity.app";
+            find.StartInfo.RedirectStandardOutput = true;
+            find.StartInfo.UseShellExecute = false;
+            find.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+
+            find.Start();
+            string output = find.StandardOutput.ReadToEnd();
+            find.WaitForExit();
+
+            foreach(string line in output.SplitLines())
+            {
+                if (line.EndsWith("Unity.app"))
+                {
+                    string appPath = line;                     
+                    string version = "";
+                    if (!TryGetUnityVersion(appPath, "Contents", out version))
+                    {
+                        version = "Unity";
+                    }
+                    if (!installs.ContainsKey(version))
+                    {
+                        installs.Add(version, appPath);
+                    }
+                }
+            }
+
+            return installs;
+        }
+
+        public static bool TryGetUnityVersion(string unityPath, string subPath, out string version)
+        {
+            string unityDir = unityPath;
+            if(!Directory.Exists(unityDir))
+            {
+                if(!File.Exists(unityDir))
+                {
+                    version = "";
+                    return false;
+                }
+
+                unityDir = Path.GetDirectoryName(unityDir);
+            }
+
+            string versionDirPath = Path.Combine(unityDir, subPath, "PackageManager/Unity/PackageManager");
+            foreach(var versionDir in Directory.GetDirectories(versionDirPath))
+            {
+                string ivyPath = Path.Combine(versionDir, "ivy.xml");
+                if(File.Exists(ivyPath))
+                {
+                    return ReadVersionFromIvy(ivyPath, out version);
+                }
+            }
+            version = "";
+            return false;
+        }
+
+        public static bool ReadVersionFromIvy(string path, out string version)
+        {
+            XDocument xDoc = XDocument.Load(path);
+            XElement module = xDoc.Element("ivy-module");
+            if (module != null)
+            {
+                XElement info = module.Element("info");
+                if (info != null)
+                {
+                    XAttribute eVersion = info.Attribute("{http://ant.apache.org/ivy/extra}unityVersion");
+                    if (eVersion != null)
+                    {
+                        version = eVersion.Value;
+                        return true;
+                    }
+                }
+            }
+            version = "";
+            return false;
         }
 
         /// <summary>
@@ -51,13 +166,20 @@ namespace Cake.Unity3D.Helpers
         /// <returns>The absolute path to the Unity3D editor log.</returns>
         public static string GetEditorLogLocation()
         {
-            var localAppdata = Environment.GetEnvironmentVariable("LocalAppData");
-            if (string.IsNullOrEmpty(localAppdata))
+            if (Environment.OSVersion.Platform == PlatformID.MacOSX ||
+                Environment.OSVersion.Platform == PlatformID.Unix)
             {
-                throw new Exception("Failed to find the 'LocalAppData' directory.");
+                return "~/Library/Logs/Unity/Editor.log";
             }
-
-            return System.IO.Path.Combine(localAppdata, "Unity", "Editor", "Editor.log");
+            else
+            {
+                var localAppdata = Environment.GetEnvironmentVariable("LocalAppData");
+                if (string.IsNullOrEmpty(localAppdata))
+                {
+                    throw new Exception("Failed to find the 'LocalAppData' directory.");
+                }
+                return System.IO.Path.Combine(localAppdata, "Unity", "Editor", "Editor.log");
+            }
         }
 
         /// <summary>

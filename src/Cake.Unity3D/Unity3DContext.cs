@@ -143,6 +143,12 @@ namespace Cake.Unity3D
                 $"-projectPath \"{m_projectOptions.ProjectFolder.FullPath}\" " +
                 $"-executeMethod {method} ";
 
+            if (Environment.OSVersion.Platform == PlatformID.MacOSX ||
+                Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                buildArguments += "-noUpm ";
+            }
+
             if (args != null)
             {
                 foreach (KeyValuePair<string, string> arg in args)
@@ -151,12 +157,18 @@ namespace Cake.Unity3D
                 }
             }
 
+            string fileName = m_projectOptions.UnityEditorLocation;
+            if(fileName.EndsWith(".app"))
+            {
+                fileName = System.IO.Path.Combine(fileName, "Contents/MacOS/Unity");
+            }
+
             // Create the process using the Unity editor and arguments above.
             var process = new Process()
             {
                 StartInfo = new ProcessStartInfo()
                 {
-                    FileName = m_projectOptions.UnityEditorLocation,
+                    FileName = fileName,
                     Arguments = buildArguments,
                     CreateNoWindow = true,
                     UseShellExecute = false

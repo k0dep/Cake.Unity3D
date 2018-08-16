@@ -40,11 +40,6 @@ namespace Cake.Unity3D
             {
                 throw new Exception("The build version can not contain any spaces.");
             }
-
-            if (!System.IO.File.Exists(projectOptions.UnityEditorLocation))
-            {
-                throw new Exception($"The Unity Editor location '{projectOptions.UnityEditorLocation}' does not exist.");
-            }
         }
 
         /// <summary>

@@ -1,7 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cake.Unity3D", "Cake.Unity3D\Cake.Unity3D.csproj", "{25131E5C-E34A-446E-9364-1729B54D3DF1}"
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2026
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cake.Unity3D", "Cake.Unity3D\Cake.Unity3D.csproj", "{25131E5C-E34A-446E-9364-1729B54D3DF1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cake.Unity3D.Test", "Cake.Unity3D.Test\Cake.Unity3D.Test.csproj", "{41D616EF-9E13-4E67-8CF6-6FA10E9CDF05}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,5 +17,15 @@ Global
 		{25131E5C-E34A-446E-9364-1729B54D3DF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{25131E5C-E34A-446E-9364-1729B54D3DF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{25131E5C-E34A-446E-9364-1729B54D3DF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41D616EF-9E13-4E67-8CF6-6FA10E9CDF05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41D616EF-9E13-4E67-8CF6-6FA10E9CDF05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41D616EF-9E13-4E67-8CF6-6FA10E9CDF05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41D616EF-9E13-4E67-8CF6-6FA10E9CDF05}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1310F54A-2C5F-4B9B-B14E-40C145C9A4F4}
 	EndGlobalSection
 EndGlobal

@@ -23,12 +23,7 @@ namespace Cake.Unity3D
         /// <param name="options">The build options to use when building the project.</param>
         public Unity3DBuildDependencyContext(ICakeContext context, Unity3DProjectOptions projectOptions, Unity3DBuildDependencyOptions options) 
             : base(context, projectOptions, options)
-        {            
-            if (!System.IO.File.Exists(projectOptions.UnityEditorLocation))
-            {
-                throw new Exception($"The Unity Editor location '{projectOptions.UnityEditorLocation}' does not exist.");
-            }
-
+        {
             if (options.Dependencies == null || options.Dependencies.Count <= 0)
             {
                 throw new Exception($"You need to set at least one TargetDependencieNames");

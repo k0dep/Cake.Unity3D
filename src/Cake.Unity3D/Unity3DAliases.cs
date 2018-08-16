@@ -128,7 +128,20 @@ namespace Cake.Unity3D
         public static bool TryGetUnityInstall(this ICakeContext context, string version, out string installPath)
         {
             var installs = context.GetAllUnityInstalls();
-            return installs.TryGetValue(version, out installPath);
+            // Try to select the version by string maching
+            if(installs.TryGetValue(version, out installPath))
+            {
+                return true;
+            }
+            // Find the best maching version
+            var selected = UnityVersion.GetNewest(installs.Keys, version);
+            // Try to select the version from the list of versions
+            if(selected != null && installs.TryGetValue(selected.ToString(), out installPath))
+            {
+                return true;
+            }
+            installPath = "";
+            return false;
         }
     }
 }
