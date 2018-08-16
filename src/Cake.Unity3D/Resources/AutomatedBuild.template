@@ -14,13 +14,76 @@ namespace Cake.Unity3D
     public static class AutomatedBuild
     {
         /// <summary>
-        /// Main build method, this should be executed by a build system.
+        /// Re-Run the last build command, invoked by UI
+        /// </summary>
+        [MenuItem("Cake3D/Build (Re-Run)")]
+        public static void BuildReRun()
+        {
+            string[] args = ReadArgsReRun("Build");
+            Build(args);
+        }
+
+        /// <summary>
+        /// Main build method, invoked from command line
         /// </summary>
         public static void Build()
         {
+            string[] args = Environment.GetCommandLineArgs();
+            WriteArgsForReRun(args, "Build");
+            Build(args);
+        }
+
+        /// <summary>
+        /// Re-Run the last SetPlayerSettings command, invoked by UI
+        /// </summary>
+        [MenuItem("Cake3D/SetPlayerSettings (Re-Run)")]
+        public static void SetPlayerSettingsReRun()
+        {
+            string[] args = ReadArgsReRun("SetPlayerSettings");
+            SetPlayerSettings(args);
+        }
+
+        /// <summary>
+        /// Setup the Player Settings by command line parameters, invoked from command line
+        /// </summary>
+        public static void SetPlayerSettings()
+        {            
+            string[] args = Environment.GetCommandLineArgs();
+            WriteArgsForReRun(args, "SetPlayerSettings");
+            SetPlayerSettings(args);
+        }
+
+        /// <summary>
+        /// Write the command line arguments into EditorPrefs storrage for reuse with the Re-Run commands
+        /// </summary>
+        /// <param name="args">the command line arguments</param>
+        /// <param name="key">key of the command</param>
+        static void WriteArgsForReRun(string[] args, string key)
+        {
+            string json = JsonUtility.ToJson(args);
+            EditorPrefs.SetString($"Cake3D.{key}", json);
+        }
+
+        /// <summary>
+        /// Read back the command line arguments for a given command from the last invokation via command line
+        /// </summary>
+        /// <param name="key">key of the command</param>
+        /// <returns>the command line arguments</returns>
+        static string[] ReadArgsReRun(string key)
+        {
+            string json = EditorPrefs.GetString($"Cake3D.{key}");
+            return JsonUtility.FromJson<string[]>(json);
+        }
+
+        /// <summary>
+        /// Build a player with prameters parsed from the args
+        /// </summary>
+        /// <param name="args">command line arguments used to parameterize the build</param>
+        public static void Build(string[] args)
+        {
             Debug.Log("[Cake.Unity3D] Beginning automated build");
 
-            var options = ParseCommandLineOptions();
+            var options = ParseCommandLineOptions(args);
 
             PlayerSettings.bundleVersion = ParseOption(options, "version", PlayerSettings.bundleVersion);
 
@@ -62,6 +125,7 @@ namespace Cake.Unity3D
         /// <summary>
         /// Update Visual Studio Project. Used by the Unity3DBuildDependencyContext
         /// </summary>
+        [MenuItem("Cake3D/SyncVS")]
         public static void SyncVS()
         {
             Debug.Log("[Cake.Unity3D] Beginning SyncVS");
@@ -69,25 +133,15 @@ namespace Cake.Unity3D
             Debug.Log("[Cake.Unity3D] SyncVS completed");
         }
 
-        [MenuItem("Cake3D/GetAssetPath")]
-        public static void GetAssetPath()
-        {
-            string path = AssetDatabase.GetAssetPath(UnityEditor.Selection.activeObject);
-            Debug.Log(path);
-
-            object obj = AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
-            if (obj != null && obj is Texture2D)
-            {
-                Debug.Log("Loading Worked :" + obj.ToString());
-            }
-        }
-
-        [MenuItem("Cake3D/SetPlayerSettings")]
-        public static void SetPlayerSettings()
+        /// <summary>
+        /// Change the PlayerSettings based on args
+        /// </summary>
+        /// <param name="args">command line arguments used to configure PlayerSettings</param>
+        public static void SetPlayerSettings(string[] args)
         {
             Debug.Log("[Cake.Unity3D] Set Player Settings");
 
-            var options = ParseCommandLineOptions();
+            var options = ParseCommandLineOptions(args);
 
             foreach (KeyValuePair<string, string> setting in options)
             {
@@ -97,7 +151,12 @@ namespace Cake.Unity3D
             Debug.Log("[Cake.Unity3D] Set Player Settings completed");
         }
 
-        static void SetSetting(string key, string value)
+        /// <summary>
+        /// Set a single setting of the PlayerSettings from string input
+        /// </summary>
+        /// <param name="key">String encoded Member Name of the PlayerSetting</param>
+        /// <param name="value">String encoded value</param>
+        private static void SetSetting(string key, string value)
         {
             if(!TrySetSpecialSetting(key, value))
             {
@@ -105,7 +164,11 @@ namespace Cake.Unity3D
             }
         }
 
-        static void ForEachTargetGroup(System.Action<BuildTargetGroup> action)
+        /// <summary>
+        /// Invoke a action for each availavle TargetGroup from the BuildTargetGroup enum
+        /// </summary>
+        /// <param name="action">the action invoked per TargetGroup</param>
+        private static void ForEachTargetGroup(System.Action<BuildTargetGroup> action)
         {
             action(BuildTargetGroup.Android);
             action(BuildTargetGroup.Facebook);
@@ -143,16 +206,145 @@ namespace Cake.Unity3D
 #endif
         }
 
-        static void IfHasValue<T>(System.Action<T> action, string input)
+        /// <summary>
+        /// Parse the command line arguments into a key/value dictionary
+        /// </summary>
+        /// <param name="cmdLineArgs">the string arguments from the command line</param>
+        /// <returns>key/value pairs of the arguments</returns>
+        private static Dictionary<string, string> ParseCommandLineOptions(string[] cmdLineArgs)
+        {  
+            var options = new Dictionary<string, string>();
+
+            // Custom arguments start with '--' and are in the format --key=value
+            var argumentRegex = new Regex(@"--(?<key>.*?)=(?<value>.*)");
+            foreach (var matchingArgument in cmdLineArgs.Select(x => argumentRegex.Match(x)).Where(x => x.Success))
+            {
+                var key = matchingArgument.Groups["key"].Value;
+                var value = matchingArgument.Groups["value"].Value;
+
+                if (options.ContainsKey(key))
+                {
+                    Debug.LogErrorFormat("[Cake.Unity3D] The command line argument '{0}' has been specified multiple times.", key);
+                    continue;
+                }
+
+                options[key] = value;
+                Debug.LogFormat("[Cake.Unity3D] Loaded option '{0}' with value '{1}'.", key, value);
+            }
+
+            return options;
+        }
+
+        /// <summary>
+        /// Lookup a option in the options and return as target type. Return defaultValue if not pressent.
+        /// </summary>
+        /// <typeparam name="T">Type of the Value</typeparam>
+        /// <param name="options">List of Options</param>
+        /// <param name="option">Lookup Key</param>
+        /// <param name="defaultValue">Return value in case the key is not pressent in options</param>
+        /// <returns></returns>
+        private static T ParseOption<T>(IDictionary<string, string> options, string option, T defaultValue)
         {
-            T value; 
-            if(TryGetValue<T>(input, out value))
+            string value;
+            if (!options.TryGetValue(option, out value))
+            {
+                return defaultValue;
+            }
+
+            if (typeof(T).IsEnum)
+            {
+                return (T)Enum.Parse(typeof(T), value);
+            }
+
+            if (typeof(T) == typeof(string))
+            {
+                return (T)(object)value;
+            }
+
+            return (T)Convert.ChangeType(value, typeof(T));
+        }
+
+        /// <summary>
+        /// Get a list of all scenes used by this build.
+        /// If the scenes parameter is supplyed in options it returense the scnes from options.
+        /// Otherwise it returns the scenes found by FindEnabledEditorScenes().
+        /// </summary>
+        /// <param name="options">List of Options used to build the player</param>
+        /// <returns>List of map names used in this build</returns>
+        private static string[] FindBuildScenes(Dictionary<string,string> options)
+        {
+            string scenes = ParseOption(options, "scenes", "");
+            if(string.IsNullOrEmpty(scenes))
+            {
+                return FindEnabledEditorScenes();
+            }
+            else
+            {
+                return scenes.Split(';');
+            }
+        }
+
+        /// <summary>
+        /// Get a list of all scenes enabled in the editor build settings.
+        /// </summary>
+        /// <returns>All enabled scenes from the Unity editor build settings.</returns>
+        private static string[] FindEnabledEditorScenes()
+        {
+            return EditorBuildSettings.scenes
+                        .Where(x => x.enabled)
+                        .Select(x => x.path)
+                        .ToArray();
+        }
+
+        /// <summary>
+        /// Utility Function to call static functions of protected Unity Types
+        /// </summary>
+        /// <param name="typeName">FullName of the Target Type</param>
+        /// <param name="methodName">Name of the Target Method</param>
+        /// <param name="args">parameter used for the Invokation</param>
+        private static void InvokeStatic(string typeName, string methodName, params object[] args)
+        {
+            foreach(var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                foreach(var type in asm.GetTypes())
+                {
+                    if(type.FullName == typeName)
+                    {
+                        foreach(var method in type.GetMethods())
+                        {
+                            if(method.IsStatic && method.Name == methodName)
+                            {
+                                method.Invoke(null, args);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Helper function to only invoke the action if a value is present and of right type
+        /// </summary>
+        /// <typeparam name="T">Target type of the Value</typeparam>
+        /// <param name="action">Action to invoke</param>
+        /// <param name="input">Input to parse</param>
+        private static void IfHasValue<T>(System.Action<T> action, string input)
+        {
+            T value;
+            if (TryGetValue<T>(input, out value))
             {
                 action(value);
             }
         }
 
-        static void IfHasValue<T1,T2>(System.Action<T1,T2> action, string input1, string input2)
+        /// <summary>
+        /// Helper function to only invoke the action if a all values are present and of right type
+        /// </summary>
+        /// <typeparam name="T">Target type of the Value</typeparam>
+        /// <param name="action">Action to invoke</param>
+        /// <param name="input1">First input to parse</param>
+        /// <param name="input2">Second input to parse</param>
+        private static void IfHasValue<T1, T2>(System.Action<T1, T2> action, string input1, string input2)
         {
             T1 value1;
             if (!TryGetValue<T1>(input1, out value1))
@@ -167,7 +359,14 @@ namespace Cake.Unity3D
             action(value1, value2);
         }
 
-        static bool TryGetSpecialOption(ref string key, out string option)
+        /// <summary>
+        /// Parse the option from a PlayerSettings key. 
+        /// The key is cut to not include the option if a option is present.
+        /// </summary>
+        /// <param name="key">the key of the PlayerSetting</param>
+        /// <param name="option">the parsed option of the Key</param>
+        /// <returns>true if a option was pressent in the key</returns>
+        private static bool TryGetSpecialOption(ref string key, out string option)
         {
             int index = key.IndexOf(':');
             if (index >= 0)
@@ -182,7 +381,13 @@ namespace Cake.Unity3D
             return false;
         }
 
-        static bool TrySetSpecialSetting(string key, string value)
+        /// <summary>
+        /// Optional handling method for Special PlayerSettings Member that have complex structures.
+        /// </summary>
+        /// <param name="key">PlayerSettings Member Name</param>
+        /// <param name="value">value of the setting</param>
+        /// <returns>true if this setting was handled by this function</returns>
+        private static bool TrySetSpecialSetting(string key, string value)
         {
             string option;
             TryGetSpecialOption(ref key, out option);
@@ -211,19 +416,19 @@ namespace Cake.Unity3D
                         // Filter out the DoNotUseDefault and UseDefault enums
                         foreach (string graphicsAPI in graphicsAPIs)
                         {
-                            if(graphicsAPI == "DoNotUseDefault")
+                            if (graphicsAPI == "DoNotUseDefault")
                             {
                                 PlayerSettings.SetUseDefaultGraphicsAPIs(buildTarget, false);
                                 Debug.Log($"[Cake.Unity3D]\t{key}({buildTarget}, UseDefault) => false");
                             }
-                            else if(graphicsAPI == "UseDefault")
+                            else if (graphicsAPI == "UseDefault")
                             {
                                 PlayerSettings.SetUseDefaultGraphicsAPIs(buildTarget, true);
                                 Debug.Log($"[Cake.Unity3D]\t{key}({buildTarget}, UseDefault) => true");
                             }
                             else
                             {
-                                setApiList.Add(graphicsAPI);                                
+                                setApiList.Add(graphicsAPI);
                             }
                         }
                         // Join the rest and apply
@@ -292,7 +497,12 @@ namespace Cake.Unity3D
             return false;
         }
 
-        static void SetSettingGeneric(string key, string value)
+        /// <summary>
+        /// Generic function to set any Member of the PlayerSettings
+        /// </summary>
+        /// <param name="key">PlayerSettings Member Name</param>
+        /// <param name="value">value of the setting</param>
+        private static void SetSettingGeneric(string key, string value)
         {
             string property;
             Type t = GetType(key, out property);
@@ -324,24 +534,32 @@ namespace Cake.Unity3D
             }
         }
 
-        static readonly Type PlayerSettingsType = typeof(PlayerSettings);
-        static readonly Type PlayerSettingsAndroidType = typeof(PlayerSettings.Android);
-        static readonly Type PlayerSettingsFacebookType = typeof(PlayerSettings.Facebook);
-        static readonly Type PlayerSettingsiOSType = typeof(PlayerSettings.iOS);
-        static readonly Type PlayerSettingsMacOSType = typeof(PlayerSettings.macOS);
-        static readonly Type PlayerSettingsN3DSType = typeof(PlayerSettings.N3DS);
-        static readonly Type PlayerSettingsPS4Type = typeof(PlayerSettings.PS4);
-        static readonly Type PlayerSettingsPSVitaType = typeof(PlayerSettings.PSVita);
-        static readonly Type PlayerSettingsSplashScreenType = typeof(PlayerSettings.SplashScreen);
-        static readonly Type PlayerSettingsSwitchType = typeof(PlayerSettings.Switch);
-        static readonly Type PlayerSettingsTvOSType = typeof(PlayerSettings.tvOS);
-        static readonly Type PlayerSettingsVRCardboardType = typeof(PlayerSettings.VRCardboard);
-        static readonly Type PlayerSettingsVRDaydreamType = typeof(PlayerSettings.VRDaydream);
-        static readonly Type PlayerSettingsVROculusType = typeof(PlayerSettings.VROculus);
-        static readonly Type PlayerSettingsWebGLType = typeof(PlayerSettings.WebGL);
-        static readonly Type PlayerSettingsWSAType = typeof(PlayerSettings.WSA);
-        static readonly Type PlayerSettingsXboxOneType = typeof(PlayerSettings.XboxOne);
-        static Type GetType(string typeInfo, out string property)
+        private static readonly Type PlayerSettingsType = typeof(PlayerSettings);
+        private static readonly Type PlayerSettingsAndroidType = typeof(PlayerSettings.Android);
+        private static readonly Type PlayerSettingsFacebookType = typeof(PlayerSettings.Facebook);
+        private static readonly Type PlayerSettingsiOSType = typeof(PlayerSettings.iOS);
+        private static readonly Type PlayerSettingsMacOSType = typeof(PlayerSettings.macOS);
+        private static readonly Type PlayerSettingsN3DSType = typeof(PlayerSettings.N3DS);
+        private static readonly Type PlayerSettingsPS4Type = typeof(PlayerSettings.PS4);
+        private static readonly Type PlayerSettingsPSVitaType = typeof(PlayerSettings.PSVita);
+        private static readonly Type PlayerSettingsSplashScreenType = typeof(PlayerSettings.SplashScreen);
+        private static readonly Type PlayerSettingsSwitchType = typeof(PlayerSettings.Switch);
+        private static readonly Type PlayerSettingsTvOSType = typeof(PlayerSettings.tvOS);
+        private static readonly Type PlayerSettingsVRCardboardType = typeof(PlayerSettings.VRCardboard);
+        private static readonly Type PlayerSettingsVRDaydreamType = typeof(PlayerSettings.VRDaydream);
+        private static readonly Type PlayerSettingsVROculusType = typeof(PlayerSettings.VROculus);
+        private static readonly Type PlayerSettingsWebGLType = typeof(PlayerSettings.WebGL);
+        private static readonly Type PlayerSettingsWSAType = typeof(PlayerSettings.WSA);
+        private static readonly Type PlayerSettingsXboxOneType = typeof(PlayerSettings.XboxOne);
+        /// <summary>
+        /// Get the target Type of the PlayerSettings.
+        /// As PlayerSettings have some subtypes this function will return subtypes of PlayerSettings.
+        /// This function will also return the target Member name of the returned Type.
+        /// </summary>
+        /// <param name="key">PlayerSettings Member Name including Subtype</param>
+        /// <param name="property">Target Member Name of the PlayerSetting (Relative to Type)</param>
+        /// <returns>Target type of the PlayerSetting</returns>
+        private static Type GetType(string typeInfo, out string property)
         {
             int index = typeInfo.LastIndexOf('.');
             if (index >= 0)
@@ -388,10 +606,19 @@ namespace Cake.Unity3D
             return PlayerSettingsType;
         }
 
-        static bool TryGetValue<T>(string input, out T value)
+        /// <summary>
+        /// Helper function to get a target value of target type given the input.
+        /// This function usualy converts from input string to output type.
+        /// For assets type this will try to locate the assed based on the string input.
+        /// </summary>
+        /// <typeparam name="T">target Type of the value</typeparam>
+        /// <param name="input">value encoded as string</param>
+        /// <param name="value">retrurn value in target type</param>
+        /// <returns>returns true if convertion or looup was successful</returns>
+        private static bool TryGetValue<T>(string input, out T value)
         {
             object objValue;
-            if(TryGetValue(typeof(T), input, out objValue))
+            if (TryGetValue(typeof(T), input, out objValue))
             {
                 value = (T)objValue;
                 return true;
@@ -400,14 +627,23 @@ namespace Cake.Unity3D
             return false;
         }
 
-        static bool TryGetValue(Type type, string input, out object value)
+        /// <summary>
+        /// Helper function to get a target value of target type given the input.
+        /// This function usualy converts from input string to output type.
+        /// For assets type this will try to locate the assed based on the string input.
+        /// </summary>
+        /// <param name="type">target Type of the value</param>
+        /// <param name="input">value encoded as string</param>
+        /// <param name="value">retrurn value in target type</param>
+        /// <returns>returns true if convertion or looup was successful</returns>
+        private static bool TryGetValue(Type type, string input, out object value)
         {
-            if(type == typeof(string))
+            if (type == typeof(string))
             {
                 value = input;
                 return true;
             }
-            else if(type == typeof(string[]))
+            else if (type == typeof(string[]))
             {
                 value = input.Split(',');
                 return true;
@@ -424,7 +660,7 @@ namespace Cake.Unity3D
             else if (type == typeof(int))
             {
                 int parseValue;
-                if(int.TryParse(input, out parseValue))
+                if (int.TryParse(input, out parseValue))
                 {
                     value = parseValue;
                     return true;
@@ -502,12 +738,12 @@ namespace Cake.Unity3D
                     return true;
                 }
             }
-            else if(type.IsArray)
+            else if (type.IsArray)
             {
                 Type elemType = type.GetElementType();
                 string[] strings = input.Split(',');
                 Array values = (Array)Activator.CreateInstance(type, new object[] { strings.Length });
-                for(int i = 0; i < strings.Length; i++)
+                for (int i = 0; i < strings.Length; i++)
                 {
                     object elemValue;
                     if (!TryGetValue(elemType, strings[i], out elemValue))
@@ -527,7 +763,7 @@ namespace Cake.Unity3D
                     value = Enum.Parse(type, input);
                     return true;
                 }
-                catch(Exception)
+                catch (Exception)
                 {
 
                 }
@@ -535,7 +771,7 @@ namespace Cake.Unity3D
             else if (type == typeof(Color))
             {
                 Color color;
-                if(ColorUtility.TryParseHtmlString(input, out color))
+                if (ColorUtility.TryParseHtmlString(input, out color))
                 {
                     value = color;
                     return true;
@@ -544,7 +780,7 @@ namespace Cake.Unity3D
             else if (type == typeof(Texture2D))
             {
                 object obj = AssetDatabase.LoadAssetAtPath(input, typeof(Texture2D));
-                if(obj != null && obj is Texture2D)
+                if (obj != null && obj is Texture2D)
                 {
                     value = obj;
                     return true;
@@ -559,14 +795,14 @@ namespace Cake.Unity3D
                     return true;
                 }
             }
-            else if(type == typeof(PlayerSettings.SplashScreenLogo))
+            else if (type == typeof(PlayerSettings.SplashScreenLogo))
             {
                 string logoString = input;
                 Sprite logo;
                 string durationString;
                 float duration;
-                if(TryGetSpecialOption(ref logoString, out durationString) && 
-                    TryGetValue<Sprite>(logoString, out logo) && 
+                if (TryGetSpecialOption(ref logoString, out durationString) &&
+                    TryGetValue<Sprite>(logoString, out logo) &&
                     float.TryParse(durationString, out duration))
                 {
                     value = new PlayerSettings.SplashScreenLogo()
@@ -577,10 +813,10 @@ namespace Cake.Unity3D
                     return true;
                 }
             }
-            else if(type == typeof(UnityEngine.Object))
+            else if (type == typeof(UnityEngine.Object))
             {
                 object obj = AssetDatabase.LoadAssetAtPath(input, typeof(UnityEngine.Object));
-                if(obj != null)
+                if (obj != null)
                 {
                     value = obj;
                     return true;
@@ -588,141 +824,6 @@ namespace Cake.Unity3D
             }
             value = null;
             return false;
-        }
-
-        public static IEnumerable<string> Split(this string str,
-                                            Func<char, bool> controller)
-        {
-            int nextPiece = 0;
-
-            for (int c = 0; c < str.Length; c++)
-            {
-                if (controller(str[c]))
-                {
-                    yield return str.Substring(nextPiece, c - nextPiece);
-                    nextPiece = c + 1;
-                }
-            }
-
-            yield return str.Substring(nextPiece);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns></returns>
-        private static Dictionary<string, string> ParseCommandLineOptions()
-        {  
-            //var cmdLineArgs = Environment.GetCommandLineArgs();
-            var cmdLineArgs = @"--companyName=Wolpertingergames --productName=Test\ App\ Come\ on --applicationIdentifier=com.woplertingertgame.testapp --bundleVersion=0.1 --apiCompatibilityLevel=NET_4_6 --actionOnDotNetUnhandledException=Crash --logObjCUncaughtExceptions=True --enableCrashReportAPI=True --strippingLevel=UseMicroMSCorlib --stripEngineCode=True --usePlayerLog=True --resizableWindow=False --defaultIsFullScreen=True --defaultIsNativeResolution=True --defaultScreenWidth=1920 --defaultScreenHeight=1080 --defaultWebScreenWidth=1208 --defaultWebScreenHeight=720 --captureSingleScreen=True --runInBackground=False --preloadedAssets=Assets/PreLoad0.txt,Assets/PreLoad1.txt --displayResolutionDialog=Disabled --virtualRealitySplashScreen=Assets/Splash/VR.png --showUnitySplashScreen=False --splashScreenStyle=Dark --splashScreen.animationMode=Dolly --splashScreen.animationBackgroundZoom=1 --splashScreen.animationLogoZoom=1 --splashScreen.background=Assets/Splash/Backgrounbd.png --splashScreen.backgroundPortrait=Assets/Splash/Portrait.png --splashScreen.backgroundColor=#99ccff --splashScreen.drawMode=AllSequential --splashScreen.logos=Assets/Splash/Logo1.png:0.5,Assets/Splash/Logo2.png:0.5 --splashScreen.overlayOpacity=0.75 --splashScreen.show=True --splashScreen.showUnityLogo=False --splashScreen.unityLogoStyle=LightOnDark --use32BitDisplayBuffer=True --colorSpace=Linear --stripUnusedMeshComponents=False --bakeCollisionMeshes=False --defaultInterfaceOrientation=LandscapeRight --allowedAutorotateToPortrait=True --allowedAutorotateToPortraitUpsideDown=True --allowedAutorotateToLandscapeRight=False --allowedAutorotateToLandscapeLeft=False --useAnimatedAutorotation=True --statusBarHidden=True --useMacAppStoreValidation=False --macRetinaSupport=True --macos.buildNumber=0.1-mac --iOS.applicationDisplayName=App on iOS --iOS.buildNumber=0.1-ios --iOS.targetDevice=iPhoneAndiPad --iOS.targetOSVersionString=7 --iOS.sdkVersion=DeviceSDK --iOS.appleDeveloperTeamID=Wolpertinger Games UG (haftungsbeschraenkt) --iOS.tvOSManualProvisioningProfileID=Some Manual Provision --iOS.iOSManualProvisioningProfileID=Another Manual Provision --iOS.microphoneUsageDescription=Microphone Not Used --iOS.locationUsageDescription=Location Not Used --iOS.cameraUsageDescription=Camera Not Used --iOS.allowHTTPDownload=False --iOS.forceHardShadowsOnMetal=False --iOS.exitOnSuspend=False --iOS.useOnDemandResources=False --iOS.appleEnableAutomaticSigning=True --iOS.requiresFullScreen=True --iOS.requiresPersistentWiFi=False --iOS.prerenderedIcon=True --iOS.overrideIPodMusic=False --iOS.showActivityIndicatorOnLoading=Gray --iOS.backgroundModes=None --iOS.targetResolution=ResolutionAutoPerformance --iOS.appInBackgroundBehavior=Suspend --iOS.scriptCallOptimization=FastButNoExceptions --iOS.statusBarStyle=BlackTranslucent --iOS.iPadLaunchScreenType=Default --iOS.iPhoneLaunchScreenType=Default --android.bundleVersionCode=1 --android.targetSdkVersion=28 --android.minSdkVersion=16 --android.targetDevice=FAT --android.keystoreName=Asset/keystore.keys --android.keystorePass=123456 --android.keyaliasName=MainApp --android.keyaliasPass=123456 --android.useAPKExpansionFiles=True --android.use24BitDepthBuffer=True --android.disableDepthAndStencilBuffers=False --android.androidIsGame=True --android.androidTVCompatibility=False --android.forceSDCardPermission=True --android.forceInternetPermission=False --android.maxAspectRatio=1.8 --android.preferredInstallLocation=Auto --android.showActivityIndicatorOnLoading=Large --android.splashScreenScale=ScaleToFit --android.blitType=Auto --stackTraceLogType:Exception=Full --stackTraceLogType:Assert=Full --stackTraceLogType:Error=Full --stackTraceLogType:Warning=ScriptOnly --stackTraceLogType:Log=None --aspectRatio:AspectOthers=False --aspectRatio:Aspect4by3=True --aspectRatio:Aspect5by4=True --aspectRatio:Aspect16by10=True --aspectRatio:Aspect16by9=True --graphicsAPIs:StandaloneWindows=UseDefault,Vulkan,Direct3D9,Direct3D11,Direct3D12 --graphicsAPIs:StandaloneWindows64=UseDefault,Vulkan,Direct3D9,Direct3D11,Direct3D12 --graphicsAPIs:iOS=Metal,DoNotUseDefault --graphicsAPIs:Android=UseDefault,OpenGLES3,Vulkan --iOS.launchScreenImage:iPhonePortraitImage=Assets/Splash/iPhonePort.png --iOS.launchScreenImage:iPhoneLandscapeImage=Assets/Splash/iPhoneLand.png --iOS.launchScreenImage:iPadImage=Assets/Splash/iPad.png --il2CppCompilerConfiguration:Standalone=Debug --il2CppCompilerConfiguration:iOS=Release --il2CppCompilerConfiguration:Android=Release --incrementalIl2CppBuild:Standalone=True --incrementalIl2CppBuild:iOS=False --incrementalIl2CppBuild:Android=False --scriptingBackend:Standalone=IL2CPP --scriptingBackend:iOS=IL2CPP --scriptingBackend:Android=Mono2x --scriptingDefineSymbolsForGroup:Standalone=CUSTOM_STANDALONE --scriptingDefineSymbolsForGroup:iOS=CUSTOM_IOS --scriptingDefineSymbolsForGroup:Android=CUSTOM_ANDROID --iconsForTargetGroup:Standalone=Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png,Assets/Icons/Standalone/Icon.png --iconsForTargetGroup:iOS=Assets/Icons/iOS/Icon1.png,Assets/Icons/iOS/Icon2.png --iconsForTargetGroup:Android=Assets/Icons/Android/Icon.png".Split();
-
-            var options = new Dictionary<string, string>();
-
-            // Custom arguments start with '--' and are in the format --key=value
-            var argumentRegex = new Regex(@"--(?<key>.*?)=(?<value>.*)");
-            foreach (var matchingArgument in cmdLineArgs.Select(x => argumentRegex.Match(x)).Where(x => x.Success))
-            {
-                var key = matchingArgument.Groups["key"].Value;
-                var value = matchingArgument.Groups["value"].Value;
-
-                if (options.ContainsKey(key))
-                {
-                    Debug.LogErrorFormat("[Cake.Unity3D] The command line argument '{0}' has been specified multiple times.", key);
-                    continue;
-                }
-
-                options[key] = value;
-                Debug.LogFormat("[Cake.Unity3D] Loaded option '{0}' with value '{1}'.", key, value);
-            }
-
-            return options;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="options"></param>
-        /// <param name="option"></param>
-        /// <param name="defaultValue"></param>
-        /// <returns></returns>
-        private static T ParseOption<T>(IDictionary<string, string> options, string option, T defaultValue)
-        {
-            string value;
-            if (!options.TryGetValue(option, out value))
-            {
-                return defaultValue;
-            }
-
-            if (typeof(T).IsEnum)
-            {
-                return (T)Enum.Parse(typeof(T), value);
-            }
-
-            if (typeof(T) == typeof(string))
-            {
-                return (T)(object)value;
-            }
-
-            return (T)Convert.ChangeType(value, typeof(T));
-        }
-
-        /// <summary>
-        /// Get a list of all scenes used by this build.
-        /// If the scenes parameter is supplyed in options it returense the scnes from options.
-        /// Otherwise it returns the scenes found by FindEnabledEditorScenes().
-        /// </summary>
-        /// <param name="options"></param>
-        /// <returns></returns>
-        private static string[] FindBuildScenes(Dictionary<string,string> options)
-        {
-            string scenes = ParseOption(options, "scenes", "");
-            if(string.IsNullOrEmpty(scenes))
-            {
-                return FindEnabledEditorScenes();
-            }
-            else
-            {
-                return scenes.Split(';');
-            }
-        }
-
-        /// <summary>
-        /// Get a list of all scenes enabled in the editor build settings.
-        /// </summary>
-        /// <returns>All enabled scenes from the Unity editor build settings.</returns>
-        private static string[] FindEnabledEditorScenes()
-        {
-            return EditorBuildSettings.scenes
-                        .Where(x => x.enabled)
-                        .Select(x => x.path)
-                        .ToArray();
-        }
-
-        /// <summary>
-        /// Utility Function to call static functions of protected Unity Types
-        /// </summary>
-        /// <param name="typeName">FullName of the Target Type</param>
-        /// <param name="methodName">Name of the Target Method</param>
-        /// <param name="args">parameter used for the Invokation</param>
-        private static void InvokeStatic(string typeName, string methodName, params object[] args)
-        {
-            foreach(var asm in System.AppDomain.CurrentDomain.GetAssemblies())
-            {
-                foreach(var type in asm.GetTypes())
-                {
-                    if(type.FullName == typeName)
-                    {
-                        foreach(var method in type.GetMethods())
-                        {
-                            if(method.IsStatic && method.Name == methodName)
-                            {
-                                method.Invoke(null, args);
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
