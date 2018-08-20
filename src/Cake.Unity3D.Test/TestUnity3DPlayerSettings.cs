@@ -20,6 +20,7 @@ namespace Cake.Unity3D.Test
         [TestMethod]
         public void TestComplexSettings()
         {
+            // TODO : validate the output
             var settings = CreateComplexSettings();
             
             settings.DumpOptions();
@@ -39,6 +40,38 @@ namespace Cake.Unity3D.Test
             TestContext.WriteLine(outString);
         }
 
+        [TestMethod]
+        public void TestSetAndGet()
+        {
+            var settings = new Unity3DPlayerSettings();
+
+            string BundleVersion = "0.1.1";
+            settings.BundleVersion = BundleVersion;
+            TestContext.WriteLine(settings.BundleVersion);
+            Assert.AreEqual(settings.BundleVersion, BundleVersion);
+
+            string ApplicationIdentifier = "com.wolpertingergames.testapp";
+            settings.ApplicationIdentifier = ApplicationIdentifier;
+            TestContext.WriteLine(settings.ApplicationIdentifier);
+            Assert.AreEqual(settings.ApplicationIdentifier, ApplicationIdentifier);
+
+            string iOSBuildNumber = settings.BundleVersion;
+            settings.iOSBuildNumber = iOSBuildNumber;
+            TestContext.WriteLine(settings.iOSBuildNumber);
+            Assert.AreEqual(settings.iOSBuildNumber, iOSBuildNumber);
+
+            var StackTraceLogType = new System.Collections.Generic.Dictionary<PlayerLogType, PlayerStackTraceLogType>()
+            {
+                { PlayerLogType.Exception, PlayerStackTraceLogType.Full },
+                { PlayerLogType.Assert, PlayerStackTraceLogType.Full },
+                { PlayerLogType.Error, PlayerStackTraceLogType.Full },
+                { PlayerLogType.Warning, PlayerStackTraceLogType.ScriptOnly },
+                { PlayerLogType.Log, PlayerStackTraceLogType.None }
+            };
+            settings.StackTraceLogType = StackTraceLogType;
+            Assert.AreEqual(settings.StackTraceLogType, StackTraceLogType);
+        }
+
         Unity3DPlayerSettings CreateComplexSettings()
         {
             var settings = new Unity3DPlayerSettings
@@ -46,7 +79,7 @@ namespace Cake.Unity3D.Test
                 // General Settings
                 CompanyName = "Wolpertingergames",
                 ProductName = "Test\\ App\\ Come\\ on",
-                ApplicationIdentifier = "com.woplertingertgame.testapp",
+                ApplicationIdentifier = "com.wolpertingergames.testapp",
                 BundleVersion = "0.1",
 
                 // DotNet / Code / Script Settings
