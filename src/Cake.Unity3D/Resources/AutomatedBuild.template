@@ -53,6 +53,11 @@ namespace Cake.Unity3D
             SetPlayerSettings(args);
         }
 
+        class ReRunArgs
+        {
+            public string[] Args;
+        }
+
         /// <summary>
         /// Write the command line arguments into EditorPrefs storrage for reuse with the Re-Run commands
         /// </summary>
@@ -60,8 +65,9 @@ namespace Cake.Unity3D
         /// <param name="key">key of the command</param>
         static void WriteArgsForReRun(string[] args, string key)
         {
-            string json = JsonUtility.ToJson(args);
+            string json = JsonUtility.ToJson(new ReRunArgs{ Args = args, });
             EditorPrefs.SetString($"Cake3D.{key}", json);
+            System.IO.File.WriteAllText($"Cake3D.{key}.json", json);
         }
 
         /// <summary>
@@ -72,7 +78,11 @@ namespace Cake.Unity3D
         static string[] ReadArgsReRun(string key)
         {
             string json = EditorPrefs.GetString($"Cake3D.{key}");
-            return JsonUtility.FromJson<string[]>(json);
+            if(string.IsNullOrEmpty(json))
+            {
+                json = System.IO.File.ReadAllText($"Cake3D.{key}.json");
+            }
+            return JsonUtility.FromJson<ReRunArgs>(json).Args;
         }
 
         /// <summary>
