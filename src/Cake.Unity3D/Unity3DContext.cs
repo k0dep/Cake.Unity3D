@@ -153,7 +153,7 @@ namespace Cake.Unity3D
             {
                 foreach (KeyValuePair<string, string> arg in args)
                 {
-                    buildArguments += $"--{arg.Key}={arg.Value} ";
+                    buildArguments += $"--{arg.Key}={EncodeCmdLineValue(arg.Value)} ";
                 }
             }
 
@@ -203,6 +203,16 @@ namespace Cake.Unity3D
             {
                 throw new Exception("An error was reported in the Unity3D editor log.");
             }
+        }
+
+        string EncodeCmdLineValue(string input)
+        {
+            // Check if input has spaces and needs to be encoded
+            if(input.IndexOf(" ") >= 0)
+            {
+                return "'" + input + "'";
+            }
+            return input;
         }
     }
 }
