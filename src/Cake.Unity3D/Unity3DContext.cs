@@ -143,12 +143,6 @@ namespace Cake.Unity3D
                 $"-projectPath=\"{m_projectOptions.ProjectFolder.FullPath}\" " +
                 $"-executeMethod {method} ";
 
-            if (Environment.OSVersion.Platform == PlatformID.MacOSX ||
-                Environment.OSVersion.Platform == PlatformID.Unix)
-            {
-                buildArguments += "-noUpm ";
-            }
-
             if (args != null)
             {
                 foreach (KeyValuePair<string, string> arg in args)
