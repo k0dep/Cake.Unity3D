@@ -140,7 +140,7 @@ namespace Cake.Unity3D
             var buildArguments =
                 "-batchmode " +
                 "-quit " +
-                $"-projectPath \"{m_projectOptions.ProjectFolder.FullPath}\" " +
+                $"-projectPath=\"{m_projectOptions.ProjectFolder.FullPath}\" " +
                 $"-executeMethod {method} ";
 
             if (Environment.OSVersion.Platform == PlatformID.MacOSX ||
@@ -160,7 +160,9 @@ namespace Cake.Unity3D
             string fileName = m_projectOptions.UnityEditorLocation;
             if(fileName.EndsWith(".app"))
             {
-                fileName = System.IO.Path.Combine(fileName, "Contents/MacOS/Unity");
+                // Use open from command line to invoke unity
+                buildArguments = $"{fileName} -W --args {buildArguments}";
+                fileName = "open";
             }
 
             // Create the process using the Unity editor and arguments above.
@@ -171,7 +173,7 @@ namespace Cake.Unity3D
                     FileName = fileName,
                     Arguments = buildArguments,
                     CreateNoWindow = true,
-                    UseShellExecute = false
+                    UseShellExecute = true,
                 }
             };
 
