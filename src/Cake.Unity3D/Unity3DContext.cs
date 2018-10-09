@@ -140,7 +140,7 @@ namespace Cake.Unity3D
             var buildArguments =
                 "-batchmode " +
                 "-quit " +
-                $"-projectPath=\"{m_projectOptions.ProjectFolder.FullPath}\" " +
+                $"-projectPath \"{System.IO.Path.GetFullPath(m_projectOptions.ProjectFolder.FullPath)}\" " +
                 $"-executeMethod {method} ";
 
             if (args != null)
