@@ -549,9 +549,13 @@ namespace Cake.Unity3D
         private static readonly Type PlayerSettingsFacebookType = typeof(PlayerSettings.Facebook);
         private static readonly Type PlayerSettingsiOSType = typeof(PlayerSettings.iOS);
         private static readonly Type PlayerSettingsMacOSType = typeof(PlayerSettings.macOS);
+#if !UNITY_2018_3_OR_NEWER
         private static readonly Type PlayerSettingsN3DSType = typeof(PlayerSettings.N3DS);
+#endif
         private static readonly Type PlayerSettingsPS4Type = typeof(PlayerSettings.PS4);
+#if !UNITY_2018_3_OR_NEWER
         private static readonly Type PlayerSettingsPSVitaType = typeof(PlayerSettings.PSVita);
+#endif
         private static readonly Type PlayerSettingsSplashScreenType = typeof(PlayerSettings.SplashScreen);
         private static readonly Type PlayerSettingsSwitchType = typeof(PlayerSettings.Switch);
         private static readonly Type PlayerSettingsTvOSType = typeof(PlayerSettings.tvOS);
@@ -586,12 +590,16 @@ namespace Cake.Unity3D
                         return PlayerSettingsiOSType;
                     case "macos":
                         return PlayerSettingsMacOSType;
+#if !UNITY_2018_3_OR_NEWER
                     case "n3ds":
                         return PlayerSettingsN3DSType;
+#endif
                     case "ps4":
                         return PlayerSettingsPS4Type;
+#if !UNITY_2018_3_OR_NEWER
                     case "psvita":
                         return PlayerSettingsPSVitaType;
+#endif
                     case "splashscreen":
                         return PlayerSettingsSplashScreenType;
                     case "switch":
