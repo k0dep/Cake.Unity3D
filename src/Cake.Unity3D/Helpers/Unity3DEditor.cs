@@ -57,18 +57,7 @@ namespace Cake.Unity3D.Helpers
                     continue;
                 }
 
-                string exePath = WindowsShortcut.GetShortcutTarget(unityShortcut);
-                string version = "";
-                if(!TryGetUnityVersion(exePath, "Data", out version))
-                {
-                    var fileInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(exePath);
-                    version = fileInfo.ProductVersion;
-                }
-
-                if (!installs.ContainsKey(version))
-                {
-                    installs.Add(version, exePath);
-                }
+                installs.Add(new System.IO.DirectoryInfo(unityFolder).Name, WindowsShortcut.GetShortcutTarget(unityShortcut));
             }
             return installs;
         }
