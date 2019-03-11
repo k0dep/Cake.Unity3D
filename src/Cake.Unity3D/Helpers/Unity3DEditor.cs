@@ -245,6 +245,30 @@ namespace Cake.Unity3D.Helpers
             currentLine = lines.Length;
             return hasError;
         }
+        
+        /// <summary>
+        /// Return build status from the specified log file after unity process exited.
+        /// </summary>
+        /// <param name="context">The active cake context.</param>
+        /// <param name="logLocation">The location of the log file to redirect.</param>
+        /// <returns> true, if report found and success, or false </returns>
+        public static bool BuildStatusFromLogs(ICakeContext context, string logLocation)
+        {
+            // The log doesn't exist, so we can't output its contents
+            // to the console.
+            if (!System.IO.File.Exists(logLocation))
+            {
+                return false;
+            }
+
+            // Read all lines from the log.
+            var lines = SafeReadAllLines(logLocation);
+
+            var buildSuccess = lines.Any(line => line.Contains("[Cake.Unity3D] Automated build completed"));
+
+            return buildSuccess;
+        }
+
 
         /// <summary>
         /// Read all lines from a given file.
