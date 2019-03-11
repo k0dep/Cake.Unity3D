@@ -184,18 +184,15 @@ namespace Cake.Unity3D
             // Start the process.
             process.Start();
 
-            // Will be set to true if an error is detected within the Unity editor log.
-            var logReportedError = false;
-
             // Whilst the process is still running, periodically redirect the editor log
             // to the console if required.
             while (!process.HasExited)
             {
                 System.Threading.Thread.Sleep(100);
-                logReportedError |= Unity3DEditor.ProcessEditorLog(m_cakeContext, m_projectOptions.OutputEditorLog, logLocation, ref outputLineIndex);
+                Unity3DEditor.ProcessEditorLog(m_cakeContext, m_projectOptions.OutputEditorLog, logLocation, ref outputLineIndex);
             }
 
-            if (logReportedError)
+            if (!Unity3DEditor.BuildStatusFromLogs(m_cakeContext, logLocation))
             {
                 throw new Exception("An error was reported in the Unity3D editor log.");
             }
