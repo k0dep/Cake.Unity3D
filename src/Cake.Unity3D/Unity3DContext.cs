@@ -134,14 +134,19 @@ namespace Cake.Unity3D
         /// <param name="args">arguments for the command line</param>
         protected void RunUnityCommand(string method, Dictionary<string, string> args)
         {
+            var startTime = DateTime.Now;
+            var projectPath = System.IO.Path.GetFullPath(m_projectOptions.ProjectFolder.FullPath);
+            var logPath = System.IO.Path.Combine(projectPath, "Temp", "editor.log");
+            
             // The command line arguments to use.
             // All options which start with duel hyphens are used internally by
             // the automated build script.
             var buildArguments =
                 "-batchmode " +
                 "-quit " +
-                $"-projectPath \"{System.IO.Path.GetFullPath(m_projectOptions.ProjectFolder.FullPath)}\" " +
-                $"-executeMethod {method} ";
+                $"-projectPath \"{projectPath}\" " +
+                $"-executeMethod {method} " +
+                $"-logFile \"{logPath}\" ";
 
             if (args != null)
             {
@@ -179,7 +184,6 @@ namespace Cake.Unity3D
             // the remaining lines. This works because Unity flushes in full lines, so we should
             // always have a full line to output.
             var outputLineIndex = 0;
-            var logLocation = Unity3DEditor.GetEditorLogLocation();
 
             // Start the process.
             process.Start();
@@ -189,10 +193,10 @@ namespace Cake.Unity3D
             while (!process.HasExited)
             {
                 System.Threading.Thread.Sleep(100);
-                Unity3DEditor.ProcessEditorLog(m_cakeContext, m_projectOptions.OutputEditorLog, logLocation, ref outputLineIndex);
+                Unity3DEditor.ProcessEditorLog(m_cakeContext, m_projectOptions.OutputEditorLog, logPath, ref outputLineIndex, startTime);
             }
 
-            if (!Unity3DEditor.BuildStatusFromLogs(m_cakeContext, logLocation))
+            if (!Unity3DEditor.BuildStatusFromLogs(m_cakeContext, logPath))
             {
                 throw new Exception("An error was reported in the Unity3D editor log.");
             }

@@ -179,11 +179,16 @@ namespace Cake.Unity3D.Helpers
         /// <param name="logLocation">The location of the log file to redirect.</param>
         /// <param name="currentLine">The line of the log of which we have already redirected.</param>
         /// <returns></returns>
-        public static bool ProcessEditorLog(ICakeContext context, bool outputEditorLog, string logLocation, ref int currentLine)
+        public static bool ProcessEditorLog(ICakeContext context, bool outputEditorLog, string logLocation, ref int currentLine, DateTime startTime)
         {
             // The log doesn't exist, so we can't output its contents
             // to the console.
             if (!System.IO.File.Exists(logLocation))
+            {
+                return false;
+            }
+            
+            if (System.IO.File.GetLastWriteTime(logLocation) < startTime)
             {
                 return false;
             }

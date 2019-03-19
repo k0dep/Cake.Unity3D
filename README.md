@@ -4,39 +4,6 @@
 
 Unity3D build support for Cake (https://github.com/cake-build/cake).
 
-### Methods
-
-```csharp
-/// <summary>
-/// Build a provided Unity3D project with the specified build options.
-/// </summary>
-/// <param name="context">The active cake context.</param>
-/// <param name="projectFolder">The absolute path to the Unity3D project to build.</param>
-/// <param name="options">The build options to use when building the project.</param>
-public static void BuildUnity3DProject(this ICakeContext context, FilePath projectFolder, Unity3DBuildOptions options)
-```
-
-```csharp
-/// <summary>
-/// Locate all installed version of Unity3D.
-/// Warning: This currently only works for Windows and has only been tested on Windows 10.
-/// </summary>
-/// <param name="context">The active cake context.</param>
-/// <returns>A dictionary containing 'key' Unity version, 'value' absolute install path</returns>
-public static Dictionary<string, string> GetAllUnityInstalls(this ICakeContext context)
-```
-
-```csharp
-/// <summary>
-/// Try and get the absolute install path for a specific Unity3D version.
-/// </summary>
-/// <param name="context">The active cake context.</param>
-/// <param name="version">The version to try and locate.</param>
-/// <param name="installPath">If found the absolute install path will be written to this out variable</param>
-/// <returns>True if the editor version was found, false otherwise.</returns>
-public static bool TryGetUnityInstall(this ICakeContext context, string version, out string installPath)
-```
-
 ## Example
 
 ```csharp
