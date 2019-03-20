@@ -136,13 +136,12 @@ namespace Cake.Unity3D
         {
             var startTime = DateTime.Now;
             var projectPath = System.IO.Path.GetFullPath(m_projectOptions.ProjectFolder.FullPath);
-            var logPath = System.IO.Path.Combine(projectPath, "Temp", "editor.log");
+            var logPath = System.IO.Path.Combine(projectPath, "Logs", "editor.log");
             
             // The command line arguments to use.
             // All options which start with duel hyphens are used internally by
             // the automated build script.
             var buildArguments =
-                "-batchmode " +
                 "-quit " +
                 $"-projectPath \"{projectPath}\" " +
                 $"-executeMethod {method} " +
